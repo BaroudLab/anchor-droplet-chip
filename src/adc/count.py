@@ -180,6 +180,7 @@ def get_cell_numbers(
     )
     if save_path_csv.endswith('.csv'):
         table.to_csv(save_path_csv, index=None)
+        print(f'Saved table to {save_path_csv}')
     return 0
 
 if __name__ == "__main__":
