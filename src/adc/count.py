@@ -6,7 +6,8 @@ from skimage.feature import peak
 from scipy import ndimage as ndi
 from tifffile import imread, imwrite
 import fire
-
+import pandas as pd
+from skimage.measure import regionprops
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ def get_cell_numbers(
     The table with labels, coordinates and number of particles returned.
     '''
     
-    props = segment.regionprops(labels)
+    props = regionprops(labels)
 
     def get_n_peaks(i):
         if bf is None:
