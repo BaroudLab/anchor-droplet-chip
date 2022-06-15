@@ -7,6 +7,9 @@ from scipy import ndimage as ndi
 from tifffile import imread, imwrite
 import fire
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_cell_numbers(
@@ -15,9 +18,15 @@ def get_cell_numbers(
     plot=False, 
     threshold_abs:float=2, 
     min_distance:float=5,
-    meta:dict={},
+    dif_gauss_sigma=(3, 5),
+    meta:dict=None,
     bf:np.ndarray=None
     ) -> pd.DataFrame:
+    '''
+    Counting fluorescence peaks inside the labels.
+    The data is filtered by gaussian difference filter first.
+    The table with labels, coordinates and number of particles returned.
+    '''
     
     props = segment.regionprops(labels)
 
@@ -26,7 +35,7 @@ def get_cell_numbers(
             return get_peak_number(
                 multiwell_image[props[i].slice], 
                 plot=plot, 
-                dif_gauss_sigma=(3, 5), 
+                dif_gauss_sigma=dif_gauss_sigma, 
                 threshold_abs=threshold_abs, 
                 min_distance=min_distance,
                 title=props[i].label
@@ -46,8 +55,8 @@ def get_cell_numbers(
     n_cells = list(map(get_n_peaks, range(labels.max())))
     return pd.DataFrame([{
         'label': prop.label, 
-        'x': prop.centroid[0], 
-        'y': prop.centroid[1], 
+        'x': prop.centroid[1], 
+        'y': prop.centroid[0], 
         'n_cells': n_cell[0],
         # 'std': n_cell[1],
         **meta
@@ -113,59 +122,18 @@ def get_peaks_all_wells(stack, centers, size, plot=0):
         n_peaks.append(get_peaks_per_frame(well, plot=plot))
     return n_peaks
 
+    
+
 def main(
     aligned_path:str, 
-    gaussian_filter:tuple=(3,5), 
+    gaussian_difference_filter:tuple=(3,5), 
     threshold:float=2, 
     min_distance:float=5, 
     save_path_csv:str="", 
+    plot=False,
     **kwargs
 ):
-def get_cell_numbers(
-    multiwell_image:np.ndarray, 
-    labels:np.ndarray, 
-    plot=False, 
-    threshold_abs:float=2, 
-    min_distance:float=5,
-    meta:dict={},
-    bf:np.ndarray=None
-    ) -> pd.DataFrame:
     
-    props = segment.regionprops(labels)
-
-    def get_n_peaks(i):
-        if bf is None:
-            return count.get_peak_number(
-                multiwell_image[props[i].slice], 
-                plot=plot, 
-                dif_gauss_sigma=(3, 5), 
-                threshold_abs=threshold_abs, 
-                min_distance=min_distance,
-                title=props[i].label
-                )
-        else:
-            return count.get_peak_number(
-                multiwell_image[props[i].slice], 
-                plot=plot, 
-                dif_gauss_sigma=(3, 5), 
-                threshold_abs=threshold_abs, 
-                min_distance=min_distance,
-                title=props[i].label,
-                bf_crop=bf[props[i].slice],
-                return_std=True
-                )
-
-    n_cells = list(map(get_n_peaks, range(labels.max())))
-    return pd.DataFrame([{
-        'label': prop.label, 
-        'x': prop.centroid[0], 
-        'y': prop.centroid[1], 
-        'n_cells': n_cell[0],
-        # 'std': n_cell[1],
-        **meta
-        } for prop, n_cell in zip(props, n_cells)])
-
-
     '''
     Reads the data and saves the counting table
     '''
@@ -175,13 +143,17 @@ def get_cell_numbers(
         labels=mask, 
         threshold_abs=threshold, 
         min_distance=min_distance, 
+        dif_gauss_sigma=gaussian_difference_filter,
         bf=bf, 
+        plot=plot,
         meta=kwargs
     )
     if save_path_csv.endswith('.csv'):
         table.to_csv(save_path_csv, index=None)
-        print(f'Saved table to {save_path_csv}')
-    return 0
+        logger.info(f'Saved table to {save_path_csv}')
+    else:
+        logger.warning('No path to save the table! Provide `save_path_csv` parameter')
+    return table
 
 if __name__ == "__main__":
     fire.Fire(main)
