@@ -5,6 +5,9 @@ import imreg_dft as reg
 import numpy as np
 import scipy.ndimage as ndi
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 GREY = np.array([np.arange(256)] * 3, dtype='uint8')
 RED = np.array([np.arange(256), np.zeros((256,)), np.zeros((256,))], dtype='uint8')
@@ -24,10 +27,18 @@ META_ALIGNED = {'ImageJ': '1.53c',
  'LUTs': [GREY, GREEN, BLUE]
  }
 
+CONSTRAINTS = {'scale': [1,0.2], 'tx': [0, 500], 'ty': [0, 500], 'angle': [0, 30]}
 
 
-
-def align_stack(bf_fluo_data:np.ndarray, template16:np.ndarray, mask2:np.ndarray, plot:bool=False, path_to_save:str=None, binnings:Tuple=(2,16,2), metadata:dict=META_ALIGNED):
+def align_stack(
+    bf_fluo_data:np.ndarray, 
+    template16:np.ndarray, 
+    mask2:np.ndarray, 
+    plot:bool=False, 
+    path_to_save:str=None, 
+    binnings:Tuple=(2,16,2),
+    constraints:dict=CONSTRAINTS, 
+    metadata:dict=META_ALIGNED):
     '''
     stack should contain two channels: bright field and fluorescence.
     BF will be binned 8 times and registered with template8 (aligned BF).
@@ -75,15 +86,10 @@ def align_stack(bf_fluo_data:np.ndarray, template16:np.ndarray, mask2:np.ndarray
         tvec: transform dictionary
     
     '''
-    if isinstance(data_or_path, str):
-        path = data_or_path
-        stack = imread(path)
-        print(path, stack.shape)
+    if path_to_save:
+        logger.info(f'Aligned stack will be saved to {path_to_save}')
     else:
-        assert data_or_path.ndim == 3 and data_or_path.shape[0] == 2
-        stack = data_or_path
-
-    print(f'Aligned stack will be saved to {path_to_save}')
+        logger.warning('No path to save alifned stack!')
 
     bf, tritc = stack[:2]
     stack_temp_scale = binnings[1] // binnings[0]
@@ -102,13 +108,13 @@ def align_stack(bf_fluo_data:np.ndarray, template16:np.ndarray, mask2:np.ndarray
     tvec8 = get_transform(f_bf_sm, template16, plot=plot)
     plt.show()
     tvec = scale_tvec(tvec8, mask_temp_scale)
-    print(tvec)
+    logger.debug(tvec)
     try:
         aligned_tritc = unpad(transform(tritc[::stack_mask_scale, ::stack_mask_scale], tvec), mask2.shape)
         aligned_bf = unpad(transform(bf[::stack_mask_scale, ::stack_mask_scale], tvec), mask2.shape)
     except ValueError as e:
-        print("stack_mask_scale: ", stack_mask_scale)
-        print(e.args)
+        logger.debug("stack_mask_scale: ", stack_mask_scale)
+        logger.error(e.args)
         raise e
     
     if plot:
@@ -153,7 +159,7 @@ def register(image, template):
     '''
     assert np.array_equal(image.shape, template.shape), \
         f'unequal shapes {(image.shape, template.shape)}'
-    return reg.similarity(template, image, constraints={'scale': [1,0.2], 'tx': [0, 500], 'ty': [0, 500], 'angle': [0, 30]})
+    return reg.similarity(template, image, constraints=constraints)
 
 
 def pad(image:np.ndarray, to_shape:tuple=None, padding:tuple=None):
