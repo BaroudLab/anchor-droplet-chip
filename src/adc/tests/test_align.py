@@ -4,6 +4,8 @@ from scipy.ndimage import gaussian_filter, rotate, shift
 
 from adc import align
 
+np.random.seed = 45654748
+
 
 @pytest.fixture
 def create_random_data():
@@ -17,11 +19,11 @@ def create_test_template_image():
     a[40:-40, 50:-50] = 1
     a[:, 160:200] = 0
     b = np.pad(a, 100, mode="constant", constant_values=0)
-    template, image = (gaussian_filter(x * 10000 + 30000, 5) for x in (a, b))
+    template, image = (gaussian_filter(x * 10000 + 30000, 2) for x in (a, b))
     image = rotate(image, (angle := 6.0), cval=30000)
     image = shift(image, (tr := (50.0, 30.0)), cval=30000)
     template, image = map(np.random.poisson, (template, image))
-    tvec = {"tvec": np.array(tr), "angle": angle}
+    tvec = {"tvec": np.array(tr, dtype="f"), "angle": angle}
     return image, template, tvec
 
 
@@ -29,7 +31,10 @@ def test_register(create_test_template_image):
     image, template, tvec = create_test_template_image
     trvec = align.get_transform(image, template, constraints=align.CONSTRAINTS)
     np.testing.assert_array_almost_equal(
-        -np.array(trvec["tvec"]) / tvec["tvec"], np.ones((2,)), decimal=0
+        -np.array(trvec["tvec"], dtype="f") / tvec["tvec"],
+        np.ones((2,)),
+        decimal=0,
+        err_msg=f'found {trvec["tvec"]}, target {tvec["tvec"]}',
     ),
     np.testing.assert_almost_equal(trvec["angle"], -tvec["angle"], decimal=0),
 
