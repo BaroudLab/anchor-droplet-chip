@@ -1,4 +1,5 @@
 import logging
+import pathlib
 from functools import partial
 
 import fire
@@ -10,7 +11,12 @@ from skimage.feature import peak_local_max
 from skimage.measure import regionprops
 from tifffile import imread
 
-logger = logging.getLogger(__name__)
+from adc.fit import poisson as fit_poisson
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(levelname)s : %(message)s"
+)
+logger = logging.getLogger("Counting module")
 
 
 def get_cell_numbers(
@@ -151,18 +157,55 @@ def get_peaks_all_wells(stack, centers, size, plot=0):
 
 def main(
     aligned_path: str,
+    save_path_csv: str,
     gaussian_difference_filter: tuple = (3, 5),
     threshold: float = 2,
     min_distance: float = 5,
-    save_path_csv: str = "",
-    plot=False,
+    force=False,
+    poisson=True,
     **kwargs,
 ):
 
     """
     Reads the data and saves the counting table
+    Parameters:
+    ===========
+    aligned_path: str
+        path to a tif stack with 3 layers: brightfield, fluorescence and labels
+    save_path_csv: str
+        path to csv file for the table
+    gaussian_difference_filter: tuple(2), default (3,5)
+        sigma values for gaussian difference filter
+    threshold: float
+        Detection threshold, default 2
+    min_distance: float
+        Minimal distance in pixel between the detecions
+    force: bool
+        If True, overrides existing csv file.
+    **kwargs:
+        Anything you want to include as additional column in the table, for example, concentration.
     """
+    if not save_path_csv.endswith(".csv"):
+        logger.error("Not a valid path! Please provide a valid .csv path!")
+        exit(1)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s : %(message)s"
+    )
+    ff = logging.FileHandler(save_path_csv.replace(".csv", ".count.log"))
+    ff.setFormatter(formatter)
+    logger.addHandler(ff)
+
+    try:
+        pathlib.Path(save_path_csv).touch(exist_ok=force)
+    except Exception as e:
+        logger.error(
+            "No path to save the table! Please provide a valid .csv path!"
+        )
+        raise e
+    logger.info(f"Reading {aligned_path}")
     bf, fluo, mask = imread(aligned_path)
+    logger.info(f"Data size: 3 x {bf.shape}")
+    logger.info(f"Counting the cells inside {len(np.unique(mask)) - 1} wells")
     table = get_cell_numbers(
         multiwell_image=fluo,
         labels=mask,
@@ -170,17 +213,18 @@ def main(
         min_distance=min_distance,
         dif_gauss_sigma=gaussian_difference_filter,
         bf=bf,
-        plot=plot,
-        meta=kwargs,
+        plot=False,
+        **kwargs,
     )
-    if save_path_csv.endswith(".csv"):
-        table.to_csv(save_path_csv, index=None)
-        logger.info(f"Saved table to {save_path_csv}")
-    else:
-        logger.warning(
-            "No path to save the table! Provide `save_path_csv` parameter"
+    table.to_csv(save_path_csv, index=None)
+    logger.info(f"Saved table to {save_path_csv}")
+    if poisson:
+        logger.info("Fitting Poisson")
+        _lambda = fit_poisson(
+            table.n_cells, save_fig_path=save_path_csv.replace(".csv", ".png")
         )
-    return table
+        logger.info(f"Mean number of cells: {_lambda:.2f}")
+    return
 
 
 if __name__ == "__main__":
