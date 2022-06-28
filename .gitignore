@@ -130,3 +130,5 @@ dmypy.json
 src/adc/_version.py
 
 *.tif
+*.csv
+*.png
