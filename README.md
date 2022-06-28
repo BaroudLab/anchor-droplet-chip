@@ -2,8 +2,17 @@
 Analyse achored droplets with fluorescent bacteria
 
 ## Installation
-
+```bash
+pip install git+https://github.com/BaroudLab/anchor-droplet-chip.git
+```
 ## Usage
+
+1. Notebook: `jupyter lab example.ipynb`
+2. Command line:
+
+    `python -m adc.align --help`
+
+    `python -m adc.count --help`
 
 ### Dowloading the raw data
 
