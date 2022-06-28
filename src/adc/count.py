@@ -16,7 +16,7 @@ from adc.fit import poisson as fit_poisson
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s : %(message)s"
 )
-logger = logging.getLogger("Counting module")
+logger = logging.getLogger("adc.count")
 
 
 def get_cell_numbers(
@@ -157,7 +157,7 @@ def get_peaks_all_wells(stack, centers, size, plot=0):
 
 def main(
     aligned_path: str,
-    save_path_csv: str,
+    save_path_csv: str = '',
     gaussian_difference_filter: tuple = (3, 5),
     threshold: float = 2,
     min_distance: float = 5,
@@ -186,12 +186,13 @@ def main(
         Anything you want to include as additional column in the table, for example, concentration.
     """
     if not save_path_csv.endswith(".csv"):
-        logger.error("Not a valid path! Please provide a valid .csv path!")
-        exit(1)
+        save_path_csv = aligned_path.replace('.tif', '-counts.csv')
+        logger.warning(f"No valid path for csv provided, using {save_path_csv}")
+
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s : %(message)s"
     )
-    ff = logging.FileHandler(save_path_csv.replace(".csv", ".count.log"))
+    ff = logging.FileHandler(save_path_csv.replace(".csv", ".log"))
     ff.setFormatter(formatter)
     logger.addHandler(ff)
 

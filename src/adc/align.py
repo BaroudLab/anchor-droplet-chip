@@ -10,7 +10,7 @@ from skimage.color import label2rgb
 from skimage.measure import label
 from tifffile import imread, imwrite
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("adc.align")
 
 GREY = np.array([np.arange(256)] * 3, dtype="uint8")
 RED = np.array(
@@ -277,6 +277,10 @@ def main(
     """
     logging.basicConfig(level='INFO')
     fh = logging.FileHandler(data_path.replace('.tif', '-aligned.log'))
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s : %(message)s"
+    )
+    fh.setFormatter(formatter)
     logger.addHandler(fh)
 
     if not path_to_save:
@@ -301,7 +305,7 @@ def main(
         path_to_save, aligned_stack, imagej=True, metadata=META_ALIGNED
     )
     logger.info(f"Saved aligned stack {path_to_save}")
-    return True
+    return path_to_save
 
 
 def to_8bits(array2d: np.ndarray):
