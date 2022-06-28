@@ -1,5 +1,7 @@
+from importlib.metadata import version, PackageNotFoundError
 import logging
 from typing import Tuple
+import sys
 
 import fire
 import imreg_dft as reg
@@ -10,7 +12,13 @@ from skimage.color import label2rgb
 from skimage.measure import label
 from tifffile import imread, imwrite
 
+try:
+    __version__ = version("adc")
+except PackageNotFoundError:
+    # package is not installed
+    pass
 logger = logging.getLogger("adc.align")
+
 
 GREY = np.array([np.arange(256)] * 3, dtype="uint8")
 RED = np.array(
@@ -46,7 +54,7 @@ CONSTRAINTS = {
 
 
 def align_stack(
-    bf_fluo_data: np.ndarray,
+    data: np.ndarray,
     template16: np.ndarray,
     mask2: np.ndarray,
     plot: bool = False,
@@ -64,7 +72,7 @@ def align_stack(
 
     Parameters:
     ===========
-    bf_fluo_data : np.ndarray
+    data : np.ndarray
         Bright-field + fluorescence stack with the shape (2, Y, X)
     template16 : np.ndarray
         binned template of aligned bright-filed image of the chip
@@ -103,7 +111,7 @@ def align_stack(
 
     """
 
-    bf, tritc = bf_fluo_data[:2]
+    bf, tritc = data[:2]
     stack_temp_scale = binnings[1] // binnings[0]
     mask_temp_scale = binnings[1] // binnings[2]
     stack_mask_scale = binnings[2] // binnings[0]
@@ -115,10 +123,12 @@ def align_stack(
     tvec = scale_tvec(tvec8, mask_temp_scale)
     logger.debug(tvec)
     try:
+        logger.info(f'Applying the transform to the brightfield channel')
         aligned_tritc = unpad(
             transform(tritc[::stack_mask_scale, ::stack_mask_scale], tvec),
             mask2.shape,
         )
+        logger.info(f'Applying the transform to the fluorescence channel')
         aligned_bf = unpad(
             transform(bf[::stack_mask_scale, ::stack_mask_scale], tvec),
             mask2.shape,
@@ -167,6 +177,7 @@ def get_transform(
     padded_template = pad(template, (s := increase(image.shape, pad_ratio)))
     padded_image = pad(image, s)
     tvec = register(padded_image, padded_template, constraints)
+    logger.info(f'Found transform: {tvec}')
     if plot:
         aligned_bf = unpad(tvec["timg"], template.shape)
         plt.figure(figsize=figsize, dpi=dpi)
@@ -257,7 +268,7 @@ def transform(image, tvec):
     """
     apply transform
     """
-    logger.info(f"transform {image.shape}")
+    logger.debug(f"transform {image.shape}")
     fluo = reg.transform_img_dict(image, tvec)
     return fluo.astype("uint")
 
@@ -283,6 +294,8 @@ def main(
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
+    logger.info(f'anchor-droplet-chip {__version__}')
+
     if not path_to_save:
         path_to_save = data_path.replace('.tif', '-aligned.tif')
         logger.warning(f'No path_to_save provided, using {path_to_save}')
@@ -305,7 +318,8 @@ def main(
         path_to_save, aligned_stack, imagej=True, metadata=META_ALIGNED
     )
     logger.info(f"Saved aligned stack {path_to_save}")
-    return path_to_save
+    sys.stdout(path_to_save)
+    sys.exit(0)
 
 
 def to_8bits(array2d: np.ndarray):
