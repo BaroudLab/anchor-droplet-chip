@@ -1,7 +1,7 @@
 import logging
 import pathlib
 from functools import partial
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
 
 import fire
 import matplotlib.pyplot as plt
@@ -14,16 +14,17 @@ from tifffile import imread
 
 from adc.fit import poisson as fit_poisson
 
+try:
+    __version__ = version("anchor-droplet-chip")
+except PackageNotFoundError:
+    # package is not installed
+    __version__ = "Unknown"
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s : %(message)s"
 )
 logger = logging.getLogger("adc.count")
 
-try:
-    __version__ = version("adc")
-except PackageNotFoundError:
-    # package is not installed
-    __version__ = "Unknown"
 
 def get_cell_numbers(
     multiwell_image: np.ndarray,
@@ -163,7 +164,7 @@ def get_peaks_all_wells(stack, centers, size, plot=0):
 
 def main(
     aligned_path: str,
-    save_path_csv: str = '',
+    save_path_csv: str = "",
     gaussian_difference_filter: tuple = (3, 5),
     threshold: float = 2,
     min_distance: float = 5,
@@ -192,12 +193,13 @@ def main(
         Anything you want to include as additional column in the table, for example, concentration.
     """
 
-    logger.info(f'anchor-droplet-chip {__version__}')
-
+    logger.info(f"anchor-droplet-chip {__version__}")
 
     if not save_path_csv.endswith(".csv"):
-        save_path_csv = aligned_path.replace('.tif', '-counts.csv')
-        logger.warning(f"No valid path for csv provided, using {save_path_csv}")
+        save_path_csv = aligned_path.replace(".tif", "-counts.csv")
+        logger.warning(
+            f"No valid path for csv provided, using {save_path_csv}"
+        )
 
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s : %(message)s"
@@ -209,10 +211,8 @@ def main(
     try:
         pathlib.Path(save_path_csv).touch(exist_ok=force)
     except Exception as e:
-        logger.error(
-            "No path to save the table! Please provide a valid .csv path!"
-        )
-        raise e
+        logger.error("File exists! Use --force to overwrite.")
+        exit(1)
     logger.info(f"Reading {aligned_path}")
     bf, fluo, mask = imread(aligned_path)
     logger.info(f"Data size: 3 x {bf.shape}")

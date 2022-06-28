@@ -1,19 +1,18 @@
-from importlib.metadata import version, PackageNotFoundError
 import logging
-from typing import Tuple
 import sys
+from importlib.metadata import PackageNotFoundError, version
+from typing import Tuple
 
 import fire
 import imreg_dft as reg
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.ndimage as ndi
 from skimage.color import label2rgb
 from skimage.measure import label
 from tifffile import imread, imwrite
 
 try:
-    __version__ = version("adc")
+    __version__ = version("anchor-droplet-chip")
 except PackageNotFoundError:
     # package is not installed
     __version__ = "Unknown"
@@ -121,14 +120,14 @@ def align_stack(
     tvec8 = get_transform(f_bf, template16, constraints, plot=plot)
     plt.show()
     tvec = scale_tvec(tvec8, mask_temp_scale)
-    logger.debug(tvec)
+    logger.info(f"Found transform: {tvec}")
     try:
-        logger.info(f'Applying the transform to the brightfield channel')
+        logger.info(f"Applying the transform to the brightfield channel")
         aligned_tritc = unpad(
             transform(tritc[::stack_mask_scale, ::stack_mask_scale], tvec),
             mask2.shape,
         )
-        logger.info(f'Applying the transform to the fluorescence channel')
+        logger.info(f"Applying the transform to the fluorescence channel")
         aligned_bf = unpad(
             transform(bf[::stack_mask_scale, ::stack_mask_scale], tvec),
             mask2.shape,
@@ -177,7 +176,7 @@ def get_transform(
     padded_template = pad(template, (s := increase(image.shape, pad_ratio)))
     padded_image = pad(image, s)
     tvec = register(padded_image, padded_template, constraints)
-    logger.info(f'Found transform: {tvec}')
+    logger.debug(f"Found transform: {tvec}")
     if plot:
         aligned_bf = unpad(tvec["timg"], template.shape)
         plt.figure(figsize=figsize, dpi=dpi)
@@ -206,7 +205,7 @@ def pad(image: np.ndarray, to_shape: tuple = None, padding: tuple = None):
     try:
         padded = np.pad(image, padding, "edge")
     except TypeError as e:
-        logger.error(f'padding {padding} failed: {e.args}')
+        logger.error(f"padding {padding} failed: {e.args}")
         raise e
     return padded
 
@@ -286,39 +285,37 @@ def main(
 
 
     """
-    logging.basicConfig(level='INFO')
-    fh = logging.FileHandler(data_path.replace('.tif', '-aligned.log'))
+    logging.basicConfig(level="INFO")
+    fh = logging.FileHandler(data_path.replace(".tif", "-aligned.log"))
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s : %(message)s"
     )
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
-    logger.info(f'anchor-droplet-chip {__version__}')
+    logger.info(f"anchor-droplet-chip {__version__}")
 
     if not path_to_save:
-        path_to_save = data_path.replace('.tif', '-aligned.tif')
-        logger.warning(f'No path_to_save provided, using {path_to_save}')
+        path_to_save = data_path.replace(".tif", "-aligned.tif")
+        logger.warning(f"No path_to_save provided, using {path_to_save}")
     stack = imread(data_path)
-    logger.info(f'Open data_path with the shape {stack.shape}')
+    logger.info(f"Open data_path with the shape {stack.shape}")
     template = imread(template_path)
-    logger.info(f'Open template_path with the shape {template.shape}')
+    logger.info(f"Open template_path with the shape {template.shape}")
     mask = imread(mask_path)
-    logger.info(f'Open mask_path with the shape {mask.shape}')
-    logger.info(f'Start aligning')
+    logger.info(f"Open mask_path with the shape {mask.shape}")
+    logger.info(f"Start aligning")
     try:
         aligned_stack, tvec = align_stack(
             stack, template, mask, path_to_save=path_to_save, binnings=binnings
         )
     except Exception as e:
-        logger.error(f'Alignment failed due to {e.args}')
+        logger.error(f"Alignment failed due to {e.args}")
         raise e
-    logger.info(f'Finished aligning. tvec: {tvec}')
-    imwrite(
-        path_to_save, aligned_stack, imagej=True, metadata=META_ALIGNED
-    )
+    logger.info(f"Finished aligning. tvec: {tvec}")
+    imwrite(path_to_save, aligned_stack, imagej=True, metadata=META_ALIGNED)
     logger.info(f"Saved aligned stack {path_to_save}")
-    sys.stdout(path_to_save)
+    sys.stdout.write(path_to_save)
     sys.exit(0)
 
 
