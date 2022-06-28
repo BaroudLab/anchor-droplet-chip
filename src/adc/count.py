@@ -1,6 +1,7 @@
 import logging
 import pathlib
 from functools import partial
+from importlib.metadata import version, PackageNotFoundError
 
 import fire
 import matplotlib.pyplot as plt
@@ -18,6 +19,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("adc.count")
 
+try:
+    __version__ = version("adc")
+except PackageNotFoundError:
+    # package is not installed
+    __version__ = "Unknown"
 
 def get_cell_numbers(
     multiwell_image: np.ndarray,
@@ -185,6 +191,10 @@ def main(
     **kwargs:
         Anything you want to include as additional column in the table, for example, concentration.
     """
+
+    logger.info(f'anchor-droplet-chip {__version__}')
+
+
     if not save_path_csv.endswith(".csv"):
         save_path_csv = aligned_path.replace('.tif', '-counts.csv')
         logger.warning(f"No valid path for csv provided, using {save_path_csv}")
