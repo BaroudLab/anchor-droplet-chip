@@ -16,7 +16,7 @@ try:
     __version__ = version("adc")
 except PackageNotFoundError:
     # package is not installed
-    pass
+    __version__ = "Unknown"
 logger = logging.getLogger("adc.align")
 
 
