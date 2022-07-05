@@ -11,6 +11,7 @@ from skimage.measure import label
 from tifffile import imread, imwrite
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 GREY = np.array([np.arange(256)] * 3, dtype="uint8")
 RED = np.array(
@@ -105,7 +106,7 @@ def align_stack(
     if path_to_save:
         logger.info(f"Aligned stack will be saved to {path_to_save}")
     else:
-        logger.warning("No path to save alifned stack!")
+        logger.warning("No path to save aligned stack!")
 
     bf, tritc = bf_fluo_data[:2]
     stack_temp_scale = binnings[1] // binnings[0]
@@ -124,7 +125,7 @@ def align_stack(
     tvec8 = get_transform(f_bf_sm, template16, constraints, plot=plot)
     plt.show()
     tvec = scale_tvec(tvec8, mask_temp_scale)
-    logger.debug(tvec)
+    logger.info(tvec)
     try:
         aligned_tritc = unpad(
             transform(tritc[::stack_mask_scale, ::stack_mask_scale], tvec),
@@ -292,8 +293,11 @@ def main(
 
     """
     stack = imread(data_path)
+    logger.info(f"Data: {stack.shape}, binning {binnings[0]}")
     template = imread(template_path)
+    logger.info(f"Data: {template.shape}, binning {binnings[1]}")
     mask = imread(mask_path)
+    logger.info(f"Data: {mask.shape}, binning {binnings[2]}")
     aligned, tvec = align_stack(
         stack, template, mask, path_to_save=path_to_save, binnings=binnings
     )
