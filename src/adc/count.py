@@ -26,6 +26,14 @@ logging.basicConfig(
 logger = logging.getLogger("adc.count")
 
 
+def stack(bf_fluo_mask: np.ndarray):
+    """
+    Wraper for get_cell_numbers, accepting the aligned stack as a single parameter.
+    """
+    bf, fluo, mask = bf_fluo_mask
+    return get_cell_numbers(multiwell_image=fluo, labels=mask, bf=bf)
+
+
 def get_cell_numbers(
     multiwell_image: np.ndarray,
     labels: np.ndarray,
