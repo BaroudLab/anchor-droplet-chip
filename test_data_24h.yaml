@@ -1,5 +1,6 @@
 data:
-  filename: day2/00ng_BF_TRITC_bin2-24h.tif
+  filename: 00ng_BF_TRITC_bin2-24h.tif
+  dir: day2
   url: https://github.com/BaroudLab/anchor-droplet-chip/releases/download/v0.0.1/00ng_BF_TRITC_bin2-24h.tif
 mask2:
   filename: labels_bin2.tif
