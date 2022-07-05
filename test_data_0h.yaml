@@ -1,4 +1,4 @@
-bf_fluo_data:
+data:
   filename: 00ng_BF_TRITC_bin2.tif
   url: https://github.com/BaroudLab/anchor-droplet-chip/releases/download/v0.0.1/00ng_BF_TRITC_bin2.tif
 mask2:
@@ -23,7 +23,7 @@ constraints:
     - 500
   ty:
     - 0
-    - 500
+    - 50
   angle: 
     - 0
     - 30

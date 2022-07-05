@@ -1,17 +1,23 @@
 import logging
+import sys
+from importlib.metadata import PackageNotFoundError, version
 from typing import Tuple
 
 import fire
 import imreg_dft as reg
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.ndimage as ndi
 from skimage.color import label2rgb
 from skimage.measure import label
 from tifffile import imread, imwrite
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+try:
+    __version__ = version("anchor-droplet-chip")
+except PackageNotFoundError:
+    # package is not installed
+    __version__ = "Unknown"
+logger = logging.getLogger("adc.align")
+
 
 GREY = np.array([np.arange(256)] * 3, dtype="uint8")
 RED = np.array(
@@ -47,7 +53,7 @@ CONSTRAINTS = {
 
 
 def align_stack(
-    bf_fluo_data: np.ndarray,
+    data: np.ndarray,
     template16: np.ndarray,
     mask2: np.ndarray,
     plot: bool = False,
@@ -65,7 +71,7 @@ def align_stack(
 
     Parameters:
     ===========
-    bf_fluo_data : np.ndarray
+    data : np.ndarray
         Bright-field + fluorescence stack with the shape (2, Y, X)
     template16 : np.ndarray
         binned template of aligned bright-filed image of the chip
@@ -103,34 +109,25 @@ def align_stack(
         tvec: transform dictionary
 
     """
-    if path_to_save:
-        logger.info(f"Aligned stack will be saved to {path_to_save}")
-    else:
-        logger.warning("No path to save aligned stack!")
 
-    bf, tritc = bf_fluo_data[:2]
+    bf, tritc = data[:2]
     stack_temp_scale = binnings[1] // binnings[0]
     mask_temp_scale = binnings[1] // binnings[2]
     stack_mask_scale = binnings[2] // binnings[0]
 
     f_bf = bf[::stack_temp_scale, ::stack_temp_scale]
-    f_bf_sm = ndi.gaussian_filter(f_bf, 2)
-    # f_bf = filter_by_fft(
-    #     bf[::stack_temp_scale, ::stack_temp_scale],
-    #     sigma=40,
-    #     fix_horizontal_stripes=True,
-    #     fix_vertical_stripes=True,
-    #     highpass=True
-    # )
-    tvec8 = get_transform(f_bf_sm, template16, constraints, plot=plot)
+
+    tvec8 = get_transform(f_bf, template16, constraints, plot=plot)
     plt.show()
     tvec = scale_tvec(tvec8, mask_temp_scale)
-    logger.info(tvec)
+    logger.info(f"Found transform: {tvec}")
     try:
+        logger.info(f"Applying the transform to the brightfield channel")
         aligned_tritc = unpad(
             transform(tritc[::stack_mask_scale, ::stack_mask_scale], tvec),
             mask2.shape,
         )
+        logger.info(f"Applying the transform to the fluorescence channel")
         aligned_bf = unpad(
             transform(bf[::stack_mask_scale, ::stack_mask_scale], tvec),
             mask2.shape,
@@ -161,11 +158,6 @@ def align_stack(
         "uint16"
     )
 
-    if path_to_save is not None:
-        imwrite(
-            path_to_save, aligned_stack, imagej=True, metadata=META_ALIGNED
-        )
-    print(f"Saved aligned stack {path_to_save}")
     return aligned_stack, tvec
 
 
@@ -184,6 +176,7 @@ def get_transform(
     padded_template = pad(template, (s := increase(image.shape, pad_ratio)))
     padded_image = pad(image, s)
     tvec = register(padded_image, padded_template, constraints)
+    logger.debug(f"Found transform: {tvec}")
     if plot:
         aligned_bf = unpad(tvec["timg"], template.shape)
         plt.figure(figsize=figsize, dpi=dpi)
@@ -212,7 +205,7 @@ def pad(image: np.ndarray, to_shape: tuple = None, padding: tuple = None):
     try:
         padded = np.pad(image, padding, "edge")
     except TypeError as e:
-        print(e.args, padding)
+        logger.error(f"padding {padding} failed: {e.args}")
         raise e
     return padded
 
@@ -222,11 +215,11 @@ def unpad(image: np.ndarray, to_shape: tuple = None, padding: tuple = None):
     Remove padding to get desired shape
     """
     if any(np.array(image.shape) - np.array(to_shape) < 0):
-        print(
-            f"unpad:warning: image.shape {image.shape} is within to_shape {to_shape}"
+        logger.warning(
+            f"unpad warning: image.shape {image.shape} is within to_shape {to_shape}"
         )
         image = pad(image, np.array((image.shape, to_shape)).max(axis=0))
-        print(f"new image shape after padding {image.shape}")
+        logger.info(f"new image shape after padding {image.shape}")
     if padding is None:
         padding = calculate_padding(to_shape, image.shape)
 
@@ -274,7 +267,7 @@ def transform(image, tvec):
     """
     apply transform
     """
-    print(f"transform {image.shape}")
+    logger.debug(f"transform {image.shape}")
     fluo = reg.transform_img_dict(image, tvec)
     return fluo.astype("uint")
 
@@ -292,16 +285,38 @@ def main(
 
 
     """
-    stack = imread(data_path)
-    logger.info(f"Data: {stack.shape}, binning {binnings[0]}")
-    template = imread(template_path)
-    logger.info(f"Data: {template.shape}, binning {binnings[1]}")
-    mask = imread(mask_path)
-    logger.info(f"Data: {mask.shape}, binning {binnings[2]}")
-    aligned, tvec = align_stack(
-        stack, template, mask, path_to_save=path_to_save, binnings=binnings
+    logging.basicConfig(level="INFO")
+    fh = logging.FileHandler(data_path.replace(".tif", "-aligned.log"))
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s : %(message)s"
     )
-    return tvec
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    logger.info(f"anchor-droplet-chip {__version__}")
+
+    if not path_to_save:
+        path_to_save = data_path.replace(".tif", "-aligned.tif")
+        logger.warning(f"No path_to_save provided, using {path_to_save}")
+    stack = imread(data_path)
+    logger.info(f"Open data_path with the shape {stack.shape}")
+    template = imread(template_path)
+    logger.info(f"Open template_path with the shape {template.shape}")
+    mask = imread(mask_path)
+    logger.info(f"Open mask_path with the shape {mask.shape}")
+    logger.info(f"Start aligning")
+    try:
+        aligned_stack, tvec = align_stack(
+            stack, template, mask, path_to_save=path_to_save, binnings=binnings
+        )
+    except Exception as e:
+        logger.error(f"Alignment failed due to {e.args}")
+        raise e
+    logger.info(f"Finished aligning. tvec: {tvec}")
+    imwrite(path_to_save, aligned_stack, imagej=True, metadata=META_ALIGNED)
+    logger.info(f"Saved aligned stack {path_to_save}")
+    sys.stdout.write(path_to_save)
+    sys.exit(0)
 
 
 def to_8bits(array2d: np.ndarray):
