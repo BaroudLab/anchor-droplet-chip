@@ -1,5 +1,10 @@
 # anchor-droplet-chip
-Analyse achored droplets with fluorescent bacteria
+Analyse achored droplets with fluorescent bacteria.
+
+We are imaging the entire chip using 20x 0.7NA objective lens using automatic stitching in NIS.
+Bright-field image 2D and TRITC-3D acquired. The 3D stack is converted to 2D using maximum projection in NIS or Fiji. Both channels are then merged together and saved as a tif stack. After that this package can be applied to detect the individual droplets and count the fluorescent cells.
+
+As the chips are bonded to the coverslip manually, they contain a randon tilt and shift, so detecting individual droplets proved to be unreliable. The current approach consisnts of preparing a well-lebelled template bright-field image and a labelled mask and matching the experimental brightfield image to the template.
 
 ## Installation
 ```bash
@@ -19,20 +24,20 @@ Head to release page https://github.com/BaroudLab/anchor-droplet-chip/releases/t
 
 Or
 
-Execute the notebook example.ipynb - the data will be fetched automatically. 
+Execute the notebook example.ipynb - the data will be fetched automatically.
 
 ### Aligning the chips with the template and the mask
 
 Day 1:
 ```bash
-python -m adc.align 00ng_BF_TRITC_bin2.tif template_bin16_bf.tif labels_bin2.tif 
+python -m adc.align 00ng_BF_TRITC_bin2.tif template_bin16_bf.tif labels_bin2.tif
 ```
 This command will create the stack 00ng_BF_TRITC_bin2-aligned.tif, which can be viewed in Fiji.
 ![Screenshot of 00ng_BF_TRITC_bin2-aligned.tif](https://user-images.githubusercontent.com/11408456/176169270-3d494fc3-a771-4bf0-859e-c9cc853ce2d9.png)
 
 Day 2:
 ```bash
-python -m adc.align 00ng_BF_TRITC_bin2_24h.tif template_bin16_bf.tif labels_bin2.tif 
+python -m adc.align 00ng_BF_TRITC_bin2_24h.tif template_bin16_bf.tif labels_bin2.tif
 ```
 
 ### Counting the cells day 1 and day2
@@ -44,7 +49,6 @@ python -m adc.align 00ng_BF_TRITC_bin2_24h.tif template_bin16_bf.tif labels_bin2
 ### Pltting and fitting probabilities
 
 
-## Sample data 
+## Sample data
 
 Check the releases section: 6 raw tif files from day1 and 6 raw tif files from day 2 are available as well as their aligned versions and corresponding tables.
-
