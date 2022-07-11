@@ -44,7 +44,7 @@ python -m adc.align day2/00ng_BF_TRITC_bin2_24h.tif template_bin16_bf.tif labels
 ### Counting the cells day 1 and day2
 ```
 python -m adc.count day1/00ng_BF_TRITC_bin2-aligned.tif day1/counts.csv
-python -m adc.count day2/00ng_BF_TRITC_bin2_24h-aligned.tif/counts.csv
+python -m adc.count day2/00ng_BF_TRITC_bin2_24h-aligned.tif day2/counts.csv
 ```
 
 ### Combining the tables from 2 days
@@ -52,7 +52,7 @@ python -m adc.count day2/00ng_BF_TRITC_bin2_24h-aligned.tif/counts.csv
 python adc.merge day1/counts.csv day2/counts.csv table.csv
 ```
 
-### Pltting and fitting probabilities
+### Plotting and fitting the probabilities
 
 
 ## Sample data
