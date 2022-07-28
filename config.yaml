@@ -3,7 +3,7 @@ antibiotic: ciprofloxacyn
 organism: e.coli
 medium: MOPS
 date: 2021/07/05
-threshold: 20
+threshold: 15
 concentrations:
   - 0
   - 5
