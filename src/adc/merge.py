@@ -27,7 +27,9 @@ def merge(
     return table
 
 
-def merge_csv(csv_day1: str, csv_day2: str, csv_out: str = ""):
+def merge_csv(
+    csv_day1: str, csv_day2: str, csv_out: str = "", concentration=None
+):
     """
     Reads the data and performs merging (see ads.merge.merge)
     """
@@ -52,6 +54,8 @@ def merge_csv(csv_day1: str, csv_day2: str, csv_out: str = ""):
         counts_day2 = pd.read_csv(csv_day2)
         logger.info(f"Merging both")
         table = merge(counts_day1=counts_day1, counts_day2=counts_day2)
+        if concentration is not None:
+            table.loc["concentration"] = concentration
         logger.info(f"Saving the output: {csv_out}")
         table.to_csv(csv_out)
     except Exception as e:
