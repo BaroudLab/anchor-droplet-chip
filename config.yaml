@@ -1,0 +1,30 @@
+concentration_unit: ng/mL
+antibiotic: ciprofloxacyn
+organism: e.coli
+medium: MOPS
+date: 2021/07/05
+threshold: 20
+concentrations:
+  - 0
+  - 5
+  - 6
+  - 7
+  - 8
+  - 12
+  - 15
+day1:
+  - 00ng.tif
+  - 05ng.tif
+  - 06ng.tif
+  - 07ng.tif
+  - 08ng.tif
+  - 12ng.tif
+  - 15ng.tif
+day2:
+  - 00ng-24h.tif
+  - 05ng-24h.tif
+  - 06ng-24h.tif
+  - 07ng-24h.tif
+  - 08ng-24h.tif
+  - 12ng-24h.tif
+  - 15ng-24h.tif
