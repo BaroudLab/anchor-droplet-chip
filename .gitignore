@@ -132,3 +132,4 @@ src/adc/_version.py
 *.tif
 *.csv
 *.png
+.snakemake*
