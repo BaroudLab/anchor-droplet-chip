@@ -299,11 +299,12 @@ def main(
         path_to_save = data_path.replace(".tif", "-aligned.tif")
         logger.warning(f"No path_to_save provided, using {path_to_save}")
     stack = imread(data_path)
-    logger.info(f"Open {data_path} with the shape {stack.shape}")
+    logger.info(f"Open `{data_path}` with the shape {stack.shape}")
     template = imread(template_path)
-    logger.info(f"Open {template_path} with the shape {template.shape}")
+    logger.info(f"Open `{template_path}` with the shape {template.shape}")
     mask = imread(mask_path)
-    logger.info(f"Open {mask_path} with the shape {mask.shape}")
+    logger.info(f"Open `{mask_path}` with the shape {mask.shape}")
+    logger.info(f"Using binnings {binnings}")
     logger.info(f"Start aligning")
     try:
         aligned_stack, tvec = align_stack(
