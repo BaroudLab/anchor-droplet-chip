@@ -28,8 +28,10 @@ async def download_url_to_file(
 
 
 async def main(projectid: str = None, destination: str = "."):
+    if not os.path.exists(destination):
+        os.mkdir(destination)
     zeno = zenodopy.Client()
-    pr = zeno.list_projects
+    _ = zeno.list_projects
     zeno.set_project(projectid)
     files = zeno.list_files
     tasks = [
