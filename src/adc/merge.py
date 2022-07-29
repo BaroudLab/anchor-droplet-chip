@@ -21,14 +21,13 @@ def merge(
     counts_day1: pd.DataFrame,
     counts_day2: pd.DataFrame,
     concentration: float = None,
+    msg="",
 ) -> pd.DataFrame:
-    import sys
-
-    print("args: ", sys.argv)
     """
     Copies the first input into the output and adds the
     `n_cells` from the second input into the output as `n_cells_final`
     """
+    logger.info(msg)
     table = counts_day1.copy()
     logger.info(f"Copy day1 to the output")
     table.loc[:, "n_cells_final"] = counts_day2.n_cells
@@ -111,6 +110,7 @@ def merge_all(
             counts_day1=pd.read_csv(d1),
             counts_day2=pd.read_csv(d2),
             concentration=c,
+            msg=f"Merging {d1} and {d2}",
         )
         for d1, d2, c in zip(paths_day1, paths_day2, concentrations)
     ]
