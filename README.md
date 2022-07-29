@@ -57,4 +57,6 @@ python adc.merge day1/counts.csv day2/counts.csv table.csv
 
 ## Sample data
 
-Check the releases section: 6 raw tif files from day1 and 6 raw tif files from day 2 are available as well as their aligned versions and corresponding tables.
+Batch processing:
+`python -m adc.io 6940212 data/`
+`snakemake -d data table.csv -c4`
