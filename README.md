@@ -58,5 +58,7 @@ python adc.merge day1/counts.csv day2/counts.csv table.csv
 ## Sample data
 
 Batch processing:
+
 `python -m adc.io 6940212 data/`
+
 `snakemake -d data table.csv -c4`
