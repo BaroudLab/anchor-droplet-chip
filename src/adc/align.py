@@ -44,7 +44,7 @@ META_ALIGNED = {
     "LUTs": [GREY, GREEN, BLUE],
 }
 
-CONSTRAINTS = {
+CONSTRAINTS = {  # [mean, std]
     "scale": [1, 0.2],
     "tx": [0, 150],
     "ty": [0, 150],
