@@ -46,8 +46,8 @@ META_ALIGNED = {
 
 CONSTRAINTS = {
     "scale": [1, 0.2],
-    "tx": [0, 500],
-    "ty": [0, 500],
+    "tx": [0, 150],
+    "ty": [0, 150],
     "angle": [0, 30],
 }
 
