@@ -133,3 +133,4 @@ src/adc/_version.py
 *.csv
 *.png
 .snakemake*
+data*
