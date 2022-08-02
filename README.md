@@ -57,8 +57,30 @@ python adc.merge day1/counts.csv day2/counts.csv table.csv
 
 ## Sample data
 
-Batch processing:
+### Batch processing:
 
-`python -m adc.io 6940212 data/`
+First you'll need to clone the repo locally and install it to have the scripts at hand.
 
-`snakemake -d data table.csv -c4`
+```bash
+git clone https://github.com/BaroudLab/anchor-droplet-chip.git
+
+cd anchor-droplet-chip
+
+pip install .
+```
+Make a data folder
+```bash
+mkdir data
+
+cd data/
+```
+Download the dataset from Zenodo https://zenodo.org/record/6940212
+```bash
+zenodo_get 6940212
+```
+Proceed with Snakemake pipeline to get tha table and plots. Be careful with the number of threads `-c` as a single thread can consume over 8 GBs of RAM.
+```bash
+cd ..
+
+snakemake -c4 -d data table.csv
+```
