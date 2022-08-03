@@ -81,8 +81,8 @@ def get_cell_numbers(
         [
             {
                 "label": prop.label,
-                "x": prop.centroid[1],
-                "y": prop.centroid[0],
+                "x": int(prop.centroid[1]),
+                "y": int(prop.centroid[0]),
                 "n_cells": n_cell[0],
                 **kwargs,
             }
