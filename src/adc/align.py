@@ -46,8 +46,8 @@ META_ALIGNED = {
 
 CONSTRAINTS = {  # [mean, std]
     "scale": [1, 0.2],
-    "tx": [0, 150],
-    "ty": [0, 150],
+    "tx": [0, 50],
+    "ty": [0, 50],
     "angle": [0, 30],
 }
 
