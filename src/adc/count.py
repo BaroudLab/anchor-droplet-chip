@@ -238,11 +238,15 @@ def main(
     table.to_csv(save_path_csv, index=None)
     logger.info(f"Saved table to {save_path_csv}")
     if poisson:
-        logger.info("Fitting Poisson")
-        _lambda = fit_poisson(
-            table.n_cells, save_fig_path=save_path_csv.replace(".csv", ".png")
-        )
-        logger.info(f"Mean number of cells: {_lambda:.2f}")
+        try:
+            logger.info("Fitting Poisson")
+            _lambda = fit_poisson(
+                table.n_cells,
+                save_fig_path=save_path_csv.replace(".csv", ".png"),
+            )
+            logger.info(f"Mean number of cells: {_lambda:.2f}")
+        except RuntimeError as e:
+            logger.warning(f"no poisson fit due to {e}")
     return
 
 
