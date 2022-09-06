@@ -72,15 +72,12 @@ Make a data folder
 ```bash
 mkdir data
 
-cd data/
 ```
 Download the dataset from Zenodo https://zenodo.org/record/6940212
 ```bash
-zenodo_get 6940212
+zenodo_get 6940212 -o data
 ```
 Proceed with Snakemake pipeline to get tha table and plots. Be careful with the number of threads `-c` as a single thread can consume over 8 GBs of RAM.
 ```bash
-cd ..
-
 snakemake -c4 -d data table.csv
 ```
