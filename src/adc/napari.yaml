@@ -1,0 +1,36 @@
+name: anchor-droplet-chip
+contributions:
+  commands:
+
+    - id: anchor-droplet-chip.get_reader
+      title: Read dataset
+      python_name: adc._reader:get_reader
+
+    - id: anchor-droplet-chip.make_centers
+      python_name: adc._sample_data:make_centers
+      title: Show centers
+
+    - id: anchor-droplet-chip.make_template
+      python_name: adc._sample_data:make_template
+      title: Show template
+
+    - id: anchor-droplet-chip.DetectWells
+      python_name: adc._widget:DetectWells
+      title: Detect wells
+
+  widgets:
+    - command: anchor-droplet-chip.DetectWells
+      display_name: Detect wells
+
+  readers:
+    - command: anchor-droplet-chip.get_reader
+      accepts_directories: True
+      filename_patterns: ['*.npy', '*.nd2', '*.zarr']
+
+  sample_data:
+    - command: anchor-droplet-chip.make_template
+      display_name: Show template
+      key: template
+    - command: anchor-droplet-chip.make_centers
+      display_name: Show centers
+      key: centers
