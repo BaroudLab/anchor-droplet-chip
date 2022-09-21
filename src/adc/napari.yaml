@@ -4,7 +4,7 @@ contributions:
 
     - id: anchor-droplet-chip.get_reader
       title: Read dataset
-      python_name: adc._reader:get_reader
+      python_name: adc._reader:napari_get_reader
 
     - id: anchor-droplet-chip.make_centers
       python_name: adc._sample_data:make_centers
