@@ -40,11 +40,18 @@ class DetectWells(QWidget):
         _sample_data.make_template()
 
     def _detect(self):
-        data = (
-            self.viewer.layers[self.select_image.current_choice]
-            .data[3]
-            .compute()
-        )
+        try:
+            data = (
+                self.viewer.layers[self.select_image.current_choice]
+                .data[3]
+                .compute()
+            )
+        except IndexError:
+            data = (
+                self.viewer.layers[self.select_image.current_choice]
+                .data[2][:, ::2, ::2]
+                .compute()
+            )
         temp = self.viewer.layers[self.select_template.current_choice].data
         centers = self.viewer.layers[self.select_centers.current_choice].data
         ccenters = centers - np.array(temp.shape) / 2.0
@@ -64,6 +71,12 @@ class DetectWells(QWidget):
                 face_color="#00000000",
                 edge_color="#88000088",
             )
+            self.viewer.layers[
+                self.select_centers.current_choice
+            ].visible = False
+            self.viewer.layers[
+                self.select_template.current_choice
+            ].visible = False
 
         except Exception as e:
             print(e)
@@ -109,15 +122,19 @@ def move_centers(centers, tvec: dict, figure_size):
 
 
 def locate_wells(bf, template, ccenters):
-    tvec = align.reg.similarity(
-        align.pad(template, bf.shape),
-        bf,
-        constraints={
-            "scale": [1, 0.1],
-            "tx": [0, 50],
-            "ty": [0, 50],
-            "angle": [0, 3],
-        },
-    )
-    print(tvec)
-    return move_centers(ccenters, tvec, bf.shape)
+    try:
+        tvec = align.reg.similarity(
+            align.pad(template, bf.shape),
+            bf,
+            constraints={
+                "scale": [1, 0.1],
+                "tx": [0, 150],
+                "ty": [0, 150],
+                "angle": [0, 10],
+            },
+        )
+        print(tvec)
+        return move_centers(ccenters, tvec, bf.shape)
+    except Exception as e:
+        print("Oops", e)
+        return ccenters
