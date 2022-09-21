@@ -28,7 +28,11 @@ DATA = [
 def make_template():
     return (
         _load_sample_data(
-            *DATA[0], name="template_bin16", colormap="gray", scale=(8, 8)
+            *DATA[0],
+            name="template_bin16",
+            colormap="cyan",
+            opacity=0.5,
+            scale=(8, 8),
         )
         + make_centers()
     )
