@@ -83,6 +83,7 @@ def read_zarr(path):
                 "colormap": colormap,
                 "contrast_limits": contrast_limits,
                 "name": name,
+                "metadata": {"path": path},
             },
             "image",
         )
@@ -104,14 +105,10 @@ def read_nd2(path):
     return [
         (
             ddata,
-            {"channel_axis": channel_axis, "metadata": {"sizes": data.sizes}},
-            # dict(
-            #     channel_axis=channel_axis,
-            #     name=[ch.channel.name for ch in data.metadata.channels],
-            # colormap=colormap,
-            # scale=data.metadata.channels[0].volume.axesCalibration[:]
-            # contrast_limits=[(8500, 35000), (150, 20000)],
-            # ),
+            {
+                "channel_axis": channel_axis,
+                "metadata": {"sizes": data.sizes, "path": path},
+            },
             "image",
         )
     ]
