@@ -15,12 +15,18 @@ contributions:
       title: Show template
 
     - id: anchor-droplet-chip.DetectWells
-      python_name: adc._widget:DetectWells
+      python_name: adc._align_widget:DetectWells
+      title: Detect wells
+
+    - id: anchor-droplet-chip.CombineStack
+      python_name: adc._combine_widget:CombineStack
       title: Detect wells
 
   widgets:
     - command: anchor-droplet-chip.DetectWells
       display_name: Detect wells
+    - command: anchor-droplet-chip.CombineStack
+      display_name: Combine stack
 
   readers:
     - command: anchor-droplet-chip.get_reader
