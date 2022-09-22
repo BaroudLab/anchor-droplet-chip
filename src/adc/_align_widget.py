@@ -37,7 +37,10 @@ class DetectWells(QWidget):
         self.reset_choices(self.viewer.layers.events.inserted)
 
         self.setLayout(self.layout)
-        _sample_data.make_template()
+        img, centers = _sample_data.make_template()
+        self.viewer.add_image(img[0], **img[1])
+        self.viewer.add_points(centers[0], **centers[1])
+        self.reset_choices()
 
     def _detect(self):
         try:
