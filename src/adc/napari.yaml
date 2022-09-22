@@ -20,6 +20,10 @@ contributions:
 
     - id: anchor-droplet-chip.CombineStack
       python_name: adc._combine_widget:CombineStack
+      title: Combine Stack
+
+    - id: anchor-droplet-chip.CombineStack
+      python_name: adc._combine_widget:CombineStack
       title: Combine stack
 
   widgets:
