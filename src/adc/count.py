@@ -100,6 +100,13 @@ def crop(stack: np.ndarray, center: tuple, size: int):
     return im
 
 
+def crop2d(img: np.ndarray, center: tuple, size: int):
+    im = img[
+        int(center[0]) - size // 2 : int(center[0]) + size // 2,
+        int(center[1]) - size // 2 : int(center[1]) + size // 2,
+    ]
+    return im
+
 def gdif(array2d, dif_gauss_sigma=(1, 3)):
     array2d = array2d.astype("f")
     return ndi.gaussian_filter(
@@ -109,13 +116,14 @@ def gdif(array2d, dif_gauss_sigma=(1, 3)):
 
 def get_peak_number(
     crop2d,
-    dif_gauss_sigma=(1, 3),
+    dif_gauss_sigma=(3, 5),
     min_distance=3,
     threshold_abs=5,
     plot=False,
     title="",
     bf_crop=None,
     return_std=False,
+    return_pos=False
 ):
     image_max = gdif(crop2d, dif_gauss_sigma)
     peaks = peak_local_max(
@@ -149,11 +157,14 @@ def get_peak_number(
 
     if return_std:
         return len(peaks), crop2d.std()
+    elif return_pos:
+        return {"count": len(peaks), "pos": peaks}
     else:
-        return (len(peaks),)
+        return len(peaks)
 
 
 def get_peaks_per_frame(stack3d, dif_gauss_sigma=(1, 3), **kwargs):
+    """Counts particles in the timelapse"""
     image_ref = gdif(stack3d[0], dif_gauss_sigma)
     thr = 5 * image_ref.std()
     return list(
@@ -161,7 +172,7 @@ def get_peaks_per_frame(stack3d, dif_gauss_sigma=(1, 3), **kwargs):
     )
 
 
-def get_peaks_all_wells(stack, centers, size, plot=0):
+def get_peaks_timelapse_all_wells(stack, centers, size, plot=0):
     n_peaks = []
     for c in centers:
         print(".", end="")
