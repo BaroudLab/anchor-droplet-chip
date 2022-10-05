@@ -2,18 +2,19 @@ import os
 from threading import Thread
 
 import dask.array as da
-from magicgui.widgets import create_widget
+from magicgui.widgets import (
+    CheckBox,
+    Container,
+    Label,
+    LineEdit,
+    create_widget,
+)
 from napari import Viewer
 from napari.layers import Image, Layer
+from napari.layers._multiscale_data import MultiScaleData
+from napari.utils import progress
 from napari.utils.notifications import show_info
-from qtpy.QtWidgets import (
-    QCheckBox,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-)
+from qtpy.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
 from zarr_tools.convert import to_zarr
 
 from adc import _sample_data
@@ -35,17 +36,25 @@ class CombineStack(QWidget):
         self.select_TRITC.changed.connect(self._update_path)
 
         self.out_path = ""
-        self.output_filename_widget = QLineEdit("path")
-        self.zmax_box = QCheckBox("Z max project")
-        self.zmax_box.stateChanged.connect(self._update_path)
+        self.output_filename_widget = LineEdit(
+            label="path", bind=self.out_path
+        )
+        self.zmax_box = CheckBox(label="Z max project")
+        self.zmax_box.changed.connect(self._update_path)
         self.btn = QPushButton("Combine!")
         self.btn.clicked.connect(self._combine)
+
+        c = Container(
+            widgets=[
+                self.select_BF,
+                self.select_TRITC,
+                self.zmax_box,
+                Label(label="Output filename"),
+                self.output_filename_widget,
+            ]
+        )
         self.layout = QVBoxLayout()
-        self.layout.addWidget(self.select_BF.native)
-        self.layout.addWidget(self.select_TRITC.native)
-        self.layout.addWidget(self.zmax_box)
-        self.layout.addWidget(QLabel("output filename"))
-        self.layout.addWidget(self.output_filename_widget)
+        self.layout.addWidget(c.native)
         self.layout.addWidget(self.btn)
         self.layout.addStretch()
 
@@ -59,23 +68,40 @@ class CombineStack(QWidget):
     def _update_path(self):
         BF = self.select_BF.current_choice
         TRITC = self.select_TRITC.current_choice
-        maxz = "maxZ" if self.zmax_box.checkState() > 0 else ""
-        self.out_path = "_".join((BF, TRITC, maxz)) + ".zarr"
+        maxz = "_maxZ" if self.zmax_box.value else "_2D"
+        self.out_path = "_".join((BF, TRITC)) + maxz + ".zarr"
         print(self.out_path)
-        self.output_filename_widget.setText(self.out_path)
+        self.output_filename_widget.value = self.out_path
         self._combine(dry_run=True)
 
     def _combine(self, dry_run=False):
+        BF = self.viewer.layers[self.select_BF.current_choice]
+        TRITC = self.viewer.layers[self.select_TRITC.current_choice]
+        if any([isinstance(a.data, MultiScaleData) for a in [BF, TRITC]]):
+            return
         print(
             f"""
-        combining {(BF_path := (BF := self.viewer.layers[self.select_BF.current_choice]).metadata["path"])}, \
-            {(TRITC_path := (TRITC := self.viewer.layers[self.select_TRITC.current_choice]).metadata["path"])},
-            {(zmax := self.zmax_box.checkState()>0)}
+        combining {(BF_path := BF.metadata["path"])}, \
+            {(TRITC_path := TRITC.metadata["path"])},
+            {(zmax := self.zmax_box.value)}
             """
         )
 
         if zmax:
             fd2d = TRITC.data.max(axis=1)
+            self.viewer.add_image(
+                data=[
+                    fd2d[..., :: 2**i, :: 2**i]
+                    for i in progress(
+                        range(4), desc="Compute multiscale TRITC maxZ"
+                    )
+                ],
+                name=self.select_TRITC.current_choice + "_maxZ",
+            )
+            self.viewer.layers[self.select_BF.current_choice].data = [
+                BF.data[..., :: 2**i, :: 2**i]
+                for i in progress(range(4), desc="Compute multiscale BF")
+            ]
         else:
             fd2d = TRITC.data
         bd2d = da.stack([BF.data, fd2d], axis=1)
