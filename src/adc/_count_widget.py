@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from magicgui.widgets import create_widget
+from magicgui.widgets import Container, create_widget
 from napari import Viewer
 from napari.layers import Image, Points
 from napari.utils import progress
@@ -22,14 +22,16 @@ class CountCells(QWidget):
         )
         self.radius = 300
         self.select_centers = create_widget(label="centers", annotation=Points)
+        self.container = Container(
+            widgets=[self.select_TRITC, self.select_centers]
+        )
 
         self.out_path = ""
         self.output_filename_widget = QLineEdit("path")
         self.btn = QPushButton("Localize!")
         self.btn.clicked.connect(self._update_detections)
         self.layout = QVBoxLayout()
-        self.layout.addWidget(self.select_TRITC.native)
-        self.layout.addWidget(self.select_centers.native)
+        self.layout.addWidget(self.container.native)
         self.layout.addWidget(self.btn)
         self.layout.addStretch()
 

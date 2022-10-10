@@ -2,7 +2,7 @@ from functools import partial
 from multiprocessing import Pool
 
 import numpy as np
-from magicgui.widgets import create_widget
+from magicgui.widgets import Container, create_widget
 from napari import Viewer
 from napari.layers import Image, Layer, Points
 from qtpy.QtWidgets import QPushButton, QVBoxLayout, QWidget
@@ -16,19 +16,24 @@ class DetectWells(QWidget):
     def __init__(self, napari_viewer: Viewer) -> None:
         super().__init__()
         self.viewer = napari_viewer
-        self.select_image = create_widget(
-            name="BF", label="BF", annotation=Image
-        )
+        self.select_image = create_widget(label="BF - data", annotation=Image)
         self.select_template = create_widget(
-            label="template", annotation=Layer
+            label="BF - template", annotation=Layer
         )
-        self.select_centers = create_widget(label="centers", annotation=Points)
+        self.select_centers = create_widget(
+            label="centers-template", annotation=Points
+        )
+        self.container = Container(
+            widgets=[
+                self.select_image,
+                self.select_template,
+                self.select_centers,
+            ]
+        )
         self.btn = QPushButton("Detect!")
         self.btn.clicked.connect(self._detect)
         self.layout = QVBoxLayout()
-        self.layout.addWidget(self.select_image.native)
-        self.layout.addWidget(self.select_template.native)
-        self.layout.addWidget(self.select_centers.native)
+        self.layout.addWidget(self.container.native)
         self.layout.addWidget(self.btn)
         self.layout.addStretch()
 
