@@ -73,10 +73,18 @@ class CountCells(QWidget):
                 detections.append((int(r.chip), global_yx[0], global_yx[1]))
         self.df.loc[:, "counts"] = counts
         self.viewer.add_points(
-            data=centers, properties=self.df, text="counts", size=self.radius
+            data=centers,
+            name="Counts",
+            properties=self.df,
+            text="counts",
+            size=self.radius,
         )
         self.viewer.add_points(
-            detections, size=20, face_color="#ffffff00", edge_color="#00ffff88"
+            detections,
+            name="Detections",
+            size=20,
+            face_color="#ffffff00",
+            edge_color="#ff007f88",
         )
 
     def show_counts(self, counts):
