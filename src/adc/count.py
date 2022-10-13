@@ -145,7 +145,7 @@ def get_peaks(
     crop2d,
     dif_gauss_sigma=(3, 5),
     min_distance=3,
-    threshold_abs=5,
+    threshold_abs=2,
     plot=False,
     title="",
     bf_crop=None,
