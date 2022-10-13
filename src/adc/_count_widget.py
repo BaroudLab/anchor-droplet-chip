@@ -1,3 +1,4 @@
+import json
 import os
 from asyncio.log import logger
 from functools import partial, reduce
@@ -96,6 +97,8 @@ class CountCells(QWidget):
             self.viewer.layers["Detections"].save(
                 os.path.join(path, ".detections.csv")
             )
+            with open(os.path.join(path, ".counts.json"), "w") as fp:
+                json.dump(n_peaks_per_well, fp, indent=2)
         except Exception as e:
             logger.error(f"Saving detections failed: {e}")
 

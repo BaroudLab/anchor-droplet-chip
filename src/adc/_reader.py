@@ -93,7 +93,6 @@ def read_zarr(path):
     if os.path.exists(det_path := os.path.join(path, ".detections.csv")):
         try:
             table = pd.read_csv(det_path, index_col=0)
-            print(table.head)
             output.append(
                 (
                     table[["axis-0", "axis-1", "axis-2"]].values,
@@ -115,7 +114,13 @@ def read_zarr(path):
     if os.path.exists(det_path := os.path.join(path, ".droplets.csv")):
         try:
             table = pd.read_csv(det_path, index_col=0)
-            print(table.head)
+            if os.path.exists(
+                count_path := os.path.join(path, ".counts.json")
+            ):
+                with open(count_path) as fp:
+                    counts = json.load(fp)
+            else:
+                counts = None
             output.append(
                 (
                     table[["axis-0", "axis-1", "axis-2"]].values,
@@ -125,6 +130,7 @@ def read_zarr(path):
                         "edge_color": "#55aa0088",
                         "size": 300,
                         "metadata": {"path": det_path},
+                        "text": counts,
                     },
                     "points",
                 )
