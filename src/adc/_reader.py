@@ -3,6 +3,7 @@ import os
 
 import dask
 import nd2
+import pandas as pd
 
 
 def napari_get_reader(path):
@@ -75,7 +76,7 @@ def read_zarr(path):
         print("name exception", e.args)
         name = os.path.basename(path)
 
-    return [
+    output = [
         (
             datasets,
             {
@@ -88,6 +89,52 @@ def read_zarr(path):
             "image",
         )
     ]
+
+    if os.path.exists(det_path := os.path.join(path, ".detections.csv")):
+        try:
+            table = pd.read_csv(det_path, index_col=0)
+            print(table.head)
+            output.append(
+                (
+                    table[["axis-0", "axis-1", "axis-2"]].values,
+                    {
+                        "name": "detections",
+                        "face_color": "#ffffff00",
+                        "edge_color": "#ff007f88",
+                        "size": 20,
+                        "metadata": {"path": det_path},
+                    },
+                    "points",
+                )
+            )
+        except Exception as e:
+            print(f"no detections found: {e}")
+    else:
+        print(f"{det_path} doesn't exists")
+
+    if os.path.exists(det_path := os.path.join(path, ".droplets.csv")):
+        try:
+            table = pd.read_csv(det_path, index_col=0)
+            print(table.head)
+            output.append(
+                (
+                    table[["axis-0", "axis-1", "axis-2"]].values,
+                    {
+                        "name": "droplets",
+                        "face_color": "#ffffff00",
+                        "edge_color": "#55aa0088",
+                        "size": 300,
+                        "metadata": {"path": det_path},
+                    },
+                    "points",
+                )
+            )
+        except Exception as e:
+            print(f"no detections found: {e}")
+    else:
+        print(f"{det_path} doesn't exists")
+
+    return output
 
 
 def read_nd2(path):

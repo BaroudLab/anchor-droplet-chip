@@ -1,4 +1,8 @@
-import numpy as np
+import os
+from asyncio.log import logger
+from functools import partial, reduce
+from operator import add
+
 import pandas as pd
 from magicgui.widgets import Container, create_widget
 from napari import Viewer
@@ -46,39 +50,38 @@ class CountCells(QWidget):
         with progress(desc="Loading data") as prb:
             fluo = (
                 self.viewer.layers[self.select_TRITC.current_choice]
-                .data[0]
+                .data[0]  # maximum resilution from the piramide
                 .compute()
             )  # max resolution
-        centers = self.viewer.layers[self.select_centers.current_choice].data
+            prb.close()
+        centers = (
+            centers_layer := self.viewer.layers[
+                self.select_centers.current_choice
+            ]
+        ).data
         try:
             self.df = pd.DataFrame(data=centers, columns=["chip", "y", "x"])
         except ValueError:
             show_error("Choose the right layer with actual localizations")
             return
         show_info("Data loaded. Counting")
-        counts = []
-        detections = []
         self.viewer.window._status_bar._toggle_activity_dock(True)
-        for i, r in progress(self.df.iterrows(), total=3000, desc="wells"):
-            out = count.get_peak_number(
-                count.crop2d(fluo[int(r.chip)], (r.y, r.x), self.radius),
-                return_pos=True,
+        peaks_raw = list(
+            map(
+                partial(
+                    count.get_global_coordinates_from_well_coordinates,
+                    fluo=fluo,
+                    size=self.radius,
+                ),
+                progress(centers, desc="Localizing:"),
             )
-            cnt, pos = out.values()
-            counts.append(cnt)
-            for yx in pos:
-                global_yx = (
-                    np.array(yx) + np.array((r.y, r.x)) - self.radius / 2
-                )
-                detections.append((int(r.chip), global_yx[0], global_yx[1]))
-        self.df.loc[:, "counts"] = counts
-        self.viewer.add_points(
-            data=centers,
-            name="Counts",
-            properties=self.df,
-            text="counts",
-            size=self.radius,
         )
+        show_info("Done localizing")
+        n_peaks_per_well = list(map(len, peaks_raw))
+        detections = reduce(add, peaks_raw)
+
+        centers_layer.text = n_peaks_per_well
+
         self.viewer.add_points(
             detections,
             name="Detections",
@@ -86,6 +89,15 @@ class CountCells(QWidget):
             face_color="#ffffff00",
             edge_color="#ff007f88",
         )
+        try:
+            path = self.viewer.layers[
+                self.select_TRITC.current_choice
+            ].metadata["path"]
+            self.viewer.layers["Detections"].save(
+                os.path.join(path, ".detections.csv")
+            )
+        except Exception as e:
+            logger.error(f"Saving detections failed: {e}")
 
     def show_counts(self, counts):
         self.counts = counts

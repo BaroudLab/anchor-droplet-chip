@@ -1,3 +1,4 @@
+import os
 from functools import partial
 from multiprocessing import Pool
 
@@ -50,16 +51,17 @@ class DetectWells(QWidget):
     def _detect(self):
         try:
             data = (
-                self.viewer.layers[self.select_image.current_choice]
+                (
+                    data_layer := self.viewer.layers[
+                        self.select_image.current_choice
+                    ]
+                )
                 .data[3]
                 .compute()
             )
         except IndexError:
-            data = (
-                self.viewer.layers[self.select_image.current_choice]
-                .data[2][:, ::2, ::2]
-                .compute()
-            )
+            data = data_layer.data[2][:, ::2, ::2].compute()
+        path = data_layer.metadata["path"]
         temp = self.viewer.layers[self.select_template.current_choice].data
         centers = self.viewer.layers[self.select_centers.current_choice].data
         ccenters = centers - np.array(temp.shape) / 2.0
@@ -75,6 +77,7 @@ class DetectWells(QWidget):
 
             self.viewer.add_points(
                 self.aligned_centers,
+                name="Droplets",
                 size=300,
                 face_color="#00000000",
                 edge_color="#88000088",
@@ -85,6 +88,9 @@ class DetectWells(QWidget):
             self.viewer.layers[
                 self.select_template.current_choice
             ].visible = False
+            self.viewer.layers["Droplets"].save(
+                os.path.join(path, ".droplets.csv")
+            )
 
         except Exception as e:
             print(e)
