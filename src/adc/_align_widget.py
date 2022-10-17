@@ -75,7 +75,7 @@ class DetectWells(QWidget):
                 [add_new_dim(c * 8, i) for i, c in enumerate(centers16)]
             )
 
-            self.viewer.add_points(
+            droplets_layer = self.viewer.add_points(
                 self.aligned_centers,
                 name="Droplets",
                 size=300,
@@ -88,7 +88,7 @@ class DetectWells(QWidget):
             self.viewer.layers[
                 self.select_template.current_choice
             ].visible = False
-            self.viewer.layers["Droplets"].save(
+            droplets_layer.save(
                 os.path.join(path, ".droplets.csv")
             )
 
