@@ -72,18 +72,17 @@ def get_cell_numbers(
                 min_distance=min_distance,
                 title=props[i].label,
                 bf_crop=bf[props[i].slice],
-                return_std=True,
             )
 
     peaks = list(map(get_raw_peaks, range(labels.max())))
-    n_cells = list(map(len(peaks)))
+    n_cells = list(map(len, peaks))
     return pd.DataFrame(
         [
             {
                 "label": prop.label,
                 "x": int(prop.centroid[1]),
                 "y": int(prop.centroid[0]),
-                "n_cells": n_cell[0],
+                "n_cells": n_cell,
                 **kwargs,
             }
             for prop, n_cell in zip(props, n_cells)
