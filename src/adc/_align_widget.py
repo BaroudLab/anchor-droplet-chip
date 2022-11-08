@@ -1,4 +1,5 @@
 import os
+from asyncio.log import logger
 from functools import partial
 from multiprocessing import Pool
 
@@ -61,7 +62,6 @@ class DetectWells(QWidget):
             )
         except IndexError:
             data = data_layer.data[2][:, ::2, ::2].compute()
-        path = data_layer.metadata["path"]
         temp = self.viewer.layers[self.select_template.current_choice].data
         centers = self.viewer.layers[self.select_centers.current_choice].data
         ccenters = centers - np.array(temp.shape) / 2.0
@@ -88,14 +88,19 @@ class DetectWells(QWidget):
             self.viewer.layers[
                 self.select_template.current_choice
             ].visible = False
-            self.viewer.layers["Droplets"].save(
-                os.path.join(path, ".droplets.csv")
-            )
 
         except Exception as e:
             print(e)
         finally:
             p.close()
+
+        try:
+            path = data_layer.metadata["path"]
+            self.viewer.layers["Droplets"].save(
+                os.path.join(path, ".droplets.csv")
+            )
+        except Exception as e:
+            logger.error(f"Saving detections failed: {e}")
 
     def reset_choices(self, event=None):
         self.select_image.reset_choices(event)
