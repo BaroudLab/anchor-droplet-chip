@@ -22,10 +22,6 @@ contributions:
       python_name: adc._combine_widget:CombineStack
       title: Combine Stack
 
-    - id: anchor-droplet-chip.CombineStack
-      python_name: adc._combine_widget:CombineStack
-      title: Combine stack
-
     - id: anchor-droplet-chip.CountCells
       python_name: adc._count_widget:CountCells
       title: Count Cells
