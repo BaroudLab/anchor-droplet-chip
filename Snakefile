@@ -3,14 +3,16 @@ configfile: "config.yaml"
 rule align:
     input:
         data="{concentration}.tif",
-        template="template_bin16_bf.tif",
-        mask="labels_bin2.tif",
+        # template="template_bin16_bf.tif",
+        template = "v3/template_bin16_v3.tif",
+        # mask="labels_bin2.tif",
+        mask = "v3/labels_bin2_v3.tif"
     params:
         binnings="[2,16,2]",
-        cx = config['constraints']["tx"][0],
-        sx = config['constraints']["tx"][1],
-        cy = config['constraints']["ty"][0],
-        sy = config['constraints']["ty"][1]
+        cx = 0,#config['constraints']["tx"][0],
+        sx = 150,#config['constraints']["tx"][1],
+        cy = 0,#config['constraints']["ty"][0],
+        sy = 50#config['constraints']["ty"][1]
     output:
         aligned="{concentration}-aligned.tif"
     shell:
