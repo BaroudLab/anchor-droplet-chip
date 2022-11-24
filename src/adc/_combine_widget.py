@@ -1,5 +1,5 @@
 import os
-from threading import Thread
+from multiprocessing import Process
 
 import dask.array as da
 from magicgui.widgets import (
@@ -114,7 +114,7 @@ class CombineStack(QWidget):
 
         if not dry_run:
             show_info("start generating zarr")
-            t = Thread(
+            t = Process(
                 target=to_zarr,
                 daemon=True,
                 args=(bd2d, zarr_path),
