@@ -37,7 +37,7 @@ class CombineStack(QWidget):
 
         self.out_path = ""
         self.output_filename_widget = LineEdit(
-            label="path", bind=self.out_path
+            label="path"
         )
         self.zmax_box = CheckBox(label="Z max project")
         self.zmax_box.changed.connect(self._update_path)
@@ -89,19 +89,6 @@ class CombineStack(QWidget):
 
         if zmax:
             fd2d = TRITC.data.max(axis=1)
-            self.viewer.add_image(
-                data=[
-                    fd2d[..., :: 2**i, :: 2**i]
-                    for i in progress(
-                        range(4), desc="Compute multiscale TRITC maxZ"
-                    )
-                ],
-                name=self.select_TRITC.current_choice + "_maxZ",
-            )
-            self.viewer.layers[self.select_BF.current_choice].data = [
-                BF.data[..., :: 2**i, :: 2**i]
-                for i in progress(range(4), desc="Compute multiscale BF")
-            ]
         else:
             fd2d = TRITC.data
         bd2d = da.stack([BF.data, fd2d], axis=1)
