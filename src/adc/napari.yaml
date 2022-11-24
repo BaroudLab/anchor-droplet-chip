@@ -26,6 +26,14 @@ contributions:
       python_name: adc._count_widget:CountCells
       title: Count Cells
 
+    - id: anchor-droplet-chip.ManualRois
+      python_name: adc._manual_rois:make_matrix
+      title: Populate ROIs
+
+    - id: anchor-droplet-chip.CropRois
+      python_name: adc._manual_rois:crop_rois
+      title: Crop ROIs
+
   widgets:
     - command: anchor-droplet-chip.DetectWells
       display_name: Detect wells
@@ -33,6 +41,10 @@ contributions:
       display_name: Combine stack
     - command: anchor-droplet-chip.CountCells
       display_name: Count Cells
+    - command: anchor-droplet-chip.CropRois
+      display_name: Crop ROIs
+    - command: anchor-droplet-chip.ManualRois
+      display_name: Populate ROIs along the line
 
   readers:
     - command: anchor-droplet-chip.get_reader
