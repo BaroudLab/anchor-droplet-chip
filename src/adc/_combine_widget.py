@@ -74,7 +74,7 @@ class CombineStack(QWidget):
         self.output_filename_widget.value = self.out_path
         self._combine(dry_run=True)
 
-    def _combine(self, dry_run=False):
+    def _combine(self, dry_run=True):
         BF = self.viewer.layers[self.select_BF.current_choice]
         TRITC = self.viewer.layers[self.select_TRITC.current_choice]
         if any([isinstance(a.data, MultiScaleData) for a in [BF, TRITC]]):
