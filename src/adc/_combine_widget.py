@@ -1,4 +1,5 @@
 import os
+from functools import partial
 from multiprocessing import Process
 
 import dask.array as da
@@ -12,8 +13,7 @@ from magicgui.widgets import (
 from napari import Viewer
 from napari.layers import Image, Layer
 from napari.layers._multiscale_data import MultiScaleData
-from napari.utils import progress
-from napari.utils.notifications import show_info
+from napari.utils.notifications import show_info, show_warning
 from qtpy.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
 from zarr_tools.convert import to_zarr
 
@@ -32,17 +32,16 @@ class CombineStack(QWidget):
         )
         self.select_TRITC = create_widget(label="TRITC", annotation=Layer)
 
-        self.select_BF.changed.connect(self._update_path)
-        self.select_TRITC.changed.connect(self._update_path)
+        self.select_BF.changed.connect(self._combine)
+        self.select_TRITC.changed.connect(self._combine)
 
         self.out_path = ""
-        self.output_filename_widget = LineEdit(
-            label="path", bind=self.out_path
-        )
+        self.output_filename_widget = LineEdit(label="path")
         self.zmax_box = CheckBox(label="Z max project")
-        self.zmax_box.changed.connect(self._update_path)
+        self.zmax_box.changed.connect(self._combine)
         self.btn = QPushButton("Combine!")
-        self.btn.clicked.connect(self._combine)
+        self.btn.setVisible(False)
+        self.btn.clicked.connect(partial(self._combine, dry_run=False))
 
         c = Container(
             widgets=[
@@ -72,7 +71,6 @@ class CombineStack(QWidget):
         self.out_path = "_".join((BF, TRITC)) + maxz + ".zarr"
         print(self.out_path)
         self.output_filename_widget.value = self.out_path
-        self._combine(dry_run=True)
 
     def _combine(self, dry_run=True):
         BF = self.viewer.layers[self.select_BF.current_choice]
@@ -86,25 +84,22 @@ class CombineStack(QWidget):
             {(zmax := self.zmax_box.value)}
             """
         )
+        try:
+            if zmax:
+                fd2d = TRITC.data.max(axis=1)
 
-        if zmax:
-            fd2d = TRITC.data.max(axis=1)
-            self.viewer.add_image(
-                data=[
-                    fd2d[..., :: 2**i, :: 2**i]
-                    for i in progress(
-                        range(4), desc="Compute multiscale TRITC maxZ"
-                    )
-                ],
-                name=self.select_TRITC.current_choice + "_maxZ",
-            )
-            self.viewer.layers[self.select_BF.current_choice].data = [
-                BF.data[..., :: 2**i, :: 2**i]
-                for i in progress(range(4), desc="Compute multiscale BF")
-            ]
-        else:
-            fd2d = TRITC.data
-        bd2d = da.stack([BF.data, fd2d], axis=1)
+            else:
+                fd2d = TRITC.data
+
+            bd2d = da.stack([BF.data, fd2d], axis=1)
+            self.btn.setVisible(True)
+            self._update_path()
+
+        except ValueError as e:
+            show_warning(f"incompatible shapes: {e}")
+            self.btn.setVisible(False)
+            return
+
         show_info(f"Resulting stack: {bd2d}")
         self.layout.addWidget(QLabel(str(bd2d.shape)))
         zarr_path = os.path.join(
