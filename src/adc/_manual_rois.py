@@ -36,7 +36,7 @@ def make_matrix(
     )
 
     return (
-        extrapolated_wells[:, -2:],
+        extrapolated_wells[:],
         {
             "symbol": "square",
             "size": size,
