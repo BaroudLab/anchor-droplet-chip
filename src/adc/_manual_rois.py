@@ -36,7 +36,7 @@ def make_matrix(
     )
 
     return (
-        extrapolated_wells[:],
+        extrapolated_wells[-2:],
         {
             "symbol": "square",
             "size": size,
@@ -55,9 +55,10 @@ def crop_rois(
     if any([stack is None, ROIs is None]):
         return
     data = stack.data
-    scale = stack.scale.max()
-    centers = ROIs.data / scale
-    size = (ROIs.size // scale).max()
+    scale = stack.scale
+    no_dim_scale = scale.max()
+    centers = ROIs.data / no_dim_scale
+    size = (ROIs.size // no_dim_scale).max()
 
     _crops = map(partial(crop_stack, stack=data, size=size), centers)
     axis = 1 if data.ndim > 3 else 0
