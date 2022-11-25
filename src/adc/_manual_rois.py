@@ -55,7 +55,7 @@ def crop_rois(
     if any([stack is None, ROIs is None]):
         return
     data = stack.data
-    scale = stack.scale
+    scale = stack.scale.max()
     centers = ROIs.data / scale
     size = (ROIs.size // scale).max()
 
