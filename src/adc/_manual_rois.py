@@ -1,3 +1,4 @@
+import logging
 from functools import partial
 
 import dask.array as da
@@ -5,12 +6,12 @@ import napari
 import numpy as np
 from magicgui import magic_factory
 from napari.layers import Image, Points, Shapes
-import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
-@magic_factory
+
+@magic_factory(auto_call=True)
 def make_matrix(
     Manual_ref_line: Shapes,
     n_cols: int = 5,
@@ -49,6 +50,7 @@ def make_matrix(
     out = (
         extrapolated_wells[:, -2:],
         {
+            "name": "ROIs",
             "symbol": "square",
             "size": size,
             "edge_color": "#ff0000",
