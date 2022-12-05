@@ -33,6 +33,9 @@ contributions:
     - id: anchor-droplet-chip.CropRois
       python_name: adc._manual_rois:crop_rois
       title: Crop ROIs
+    - id: anchor-droplet-chip.SubStack
+      python_name: adc._manual_rois:SubStack
+      title: Make a sub stack
 
   widgets:
     - command: anchor-droplet-chip.DetectWells
@@ -45,6 +48,8 @@ contributions:
       display_name: Crop ROIs
     - command: anchor-droplet-chip.ManualRois
       display_name: Populate ROIs along the line
+    - command: anchor-droplet-chip.SubStack
+      display_name: Make a sub stack
 
   readers:
     - command: anchor-droplet-chip.get_reader

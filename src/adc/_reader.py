@@ -148,6 +148,11 @@ def read_nd2(path):
     data = nd2.ND2File(path)
     print(data.sizes)
     ddata = data.to_dask()
+    try:
+        pixel_size_um = data.metadata.channels[0].volume.axesCalibration[0]
+    except Exception as e:
+        print(f"Pixel information unavailable: {e}")
+        pixel_size_um = 1
     # colormap = ["gray", "green"]
     try:
         channel_axis = list(data.sizes.keys()).index("C")
@@ -160,7 +165,14 @@ def read_nd2(path):
             ddata,
             {
                 "channel_axis": channel_axis,
-                "metadata": {"sizes": data.sizes, "path": path},
+                "metadata": {
+                    "sizes": data.sizes,
+                    "path": path,
+                    "dask_array": ddata,
+                    "pixel_size_um": pixel_size_um,
+                    "channel_axis": channel_axis,
+                    "channel_axis_name": "C",
+                },
             },
             "image",
         )
