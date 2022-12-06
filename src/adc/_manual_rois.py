@@ -1,4 +1,5 @@
 import logging
+import os
 from functools import partial
 
 import dask.array as da
@@ -7,17 +8,179 @@ import numpy as np
 from magicgui import magic_factory
 from magicgui.widgets import (
     Container,
+    FileEdit,
     Label,
     PushButton,
+    RadioButtons,
     SliceEdit,
+    Table,
     create_widget,
 )
 from napari.layers import Image, Points, Shapes
+from napari.utils import progress
 from napari.utils.notifications import show_warning
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+from tifffile import imwrite
+
+
+class SplitAlong(QWidget):
+    def __init__(self, napari_viewer: napari.Viewer) -> None:
+        super().__init__()
+        self.viewer = napari_viewer
+        self.data_widget = create_widget(
+            annotation=Image,
+            label="data",
+        )
+        self.path_widget = FileEdit(mode="d")
+        self.path_widget.changed.connect(self.update_table)
+        self.saving_table = Table(value=[{}])
+        self.data_widget.changed.connect(self.init_data)
+        self.axis_selector = RadioButtons(
+            label="Choose axis", orientation="horizontal", choices=()
+        )
+        self.split_btn = PushButton(text="Split it!")
+        self.split_btn.clicked.connect(self.make_new_layer)
+        self.save_btn = PushButton(text="Save tifs!")
+        self.save_btn.clicked.connect(self.save_tifs)
+
+        self.input_container = Container(
+            widgets=[
+                self.data_widget,
+                self.axis_selector,
+                self.split_btn,
+                self.path_widget,
+                self.saving_table,
+                self.save_btn,
+            ]
+        )
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.input_container.native)
+        self.layout.addWidget(self.path_widget.native)
+        self.layout.addStretch()
+        self.setLayout(self.layout)
+
+        self.init_data()
+
+    def save_tifs(self):
+        for i, (name, path, _) in progress(
+            enumerate(ttt := self.saving_table.data.to_list()), total=len(ttt)
+        ):
+            logger.debug(f"Saving {name} into {path}")
+            try:
+                layer = self.viewer.layers[name]
+                data = layer.data.compute()
+                meta = layer.metadata.copy()
+                meta["spacing"] = meta["pixel_size_um"]
+                meta["unit"] = "um"
+                data_formatted_imagej = (
+                    np.expand_dims(data, axis=1)
+                    if "Z" not in meta["sizes"]
+                    else data
+                )
+                imwrite(
+                    path, data_formatted_imagej, imagej=True, metadata=meta
+                )
+                self.saving_table.data[i] = [name, path, "Saved!"]
+            except Exception as e:
+                logger.error(f"Failed saving {name} into {path}: {e}")
+
+    def make_new_layer(self):
+        channel_axis = self.axis_selector.choices.index(
+            self.axis_selector.current_choice
+        )
+        sizes = self.sizes.copy()
+        _ = sizes.pop("P")
+        meta = self.dataset.metadata.copy()
+        meta["sizes"] = sizes
+        meta["split_axis"] = self.axis_selector.current_choice
+        self.new_layers = self.viewer.add_image(
+            self.dataset.data,
+            name=f"{self.data_widget.current_choice}",
+            channel_axis=channel_axis,
+            metadata=meta,
+        )
+        self.update_table()
+
+    def update_table(self):
+        self.saving_table.value = [
+            {
+                "name": layer.name,
+                "path": os.path.join(
+                    self.path_widget.value,
+                    layer.name.replace(":", "_").replace(" ", "_") + ".tif",
+                ),
+                "saved": "",
+            }
+            for i, layer in enumerate(self.new_layers)
+        ]
+
+    def init_data(self):
+        try:
+            self.dataset = self.viewer.layers[self.data_widget.current_choice]
+        except KeyError:
+            logger.debug("no dataset")
+            self.sizes = None
+            self.path = None
+            logger.debug("set sizes and path to None")
+
+            return
+
+        try:
+            self.sizes = self.dataset.metadata["sizes"]
+            logger.debug(f"set sizes {self.sizes}")
+
+        except KeyError:
+            logger.debug(
+                f"generating sizes from shape {self.dataset.data.shape}"
+            )
+            self.sizes = {
+                f"dim-{i}": s for i, s in enumerate(self.dataset.data.shape)
+            }
+            show_warning(f"No sizes found in metadata")
+            logger.debug(f"set sizes {self.sizes}")
+        logger.debug("init_meta")
+
+        try:
+            self.sizes = self.dataset.metadata["sizes"]
+            logger.debug(f"set sizes {self.sizes}")
+
+        except KeyError:
+            logger.debug(
+                f"generating sizes from shape {self.dataset.data.shape}"
+            )
+            self.sizes = {
+                f"dim-{i}": s for i, s in enumerate(self.dataset.data.shape)
+            }
+            show_warning(f"No sizes found in metadata")
+            logger.debug(f"set sizes {self.sizes}")
+
+        try:
+            self.path = self.dataset.metadata["path"]
+            logger.debug(f"set path {self.path}")
+        except KeyError:
+            self.path = None
+            logger.debug(f"set path to None")
+            show_warning(f"No path found in metadata")
+
+        try:
+            self.pixel_size_um = self.dataset.metadata["pixel_size_um"]
+            logger.debug(f"set pixel_size_um {self.pixel_size_um}")
+        except KeyError:
+            self.pixel_size_um = None
+            logger.debug(f"set pixel_size_um to None")
+            show_warning(f"No pixel_size_um found in metadata")
+
+        self.axis_selector.choices = list(
+            f"{ax}:{size}" for ax, size in self.sizes.items()
+        )
+        logger.debug(f"update choices with {self.axis_selector.choices}")
+
+    def reset_choices(self):
+        self.data_widget.reset_choices()
+        logger.debug(f"reset choises from input {self.data_widget.choices}")
 
 
 class SubStack(QWidget):
@@ -65,16 +228,33 @@ class SubStack(QWidget):
             show_warning("No data")
 
     def make_new_layer(self):
-        self.viewer.add_image(self.out_dask, name="Crop")
+        self.viewer.add_image(
+            self.out_dask,
+            name="Crop",
+            metadata={
+                "pixel_size_um": self.pixel_size_um,
+                "sizes": self.out_sizes,
+                "substack_coords": self.crop_coords,
+                "source_path": self.path,
+            },
+        )
 
     def compute_substack(self):
         logger.debug("Compute substack")
-        slices = [
-            slice(item.start.value, item.stop.value)
-            if item.stop.value - item.start.value > 1
-            else item.start.value
-            for item in self.slice_container
-        ]
+        slices = []
+        sizes = {}
+        crop_coords = {}
+        for item in self.slice_container:
+            dim = (
+                slice(item.start.value, item.stop.value)
+                if (size := item.stop.value - item.start.value) > 1
+                else (val := item.start.value)
+            )
+            slices.append(dim)
+            if isinstance(dim, slice):
+                sizes[item.label] = size
+            else:
+                crop_coords[item.label] = val
         logger.debug(f"Slices: {slices}")
         if len(slices) == 6:
             self.out_dask = self.dask_array[
@@ -110,6 +290,8 @@ class SubStack(QWidget):
 
         logger.debug(f"Out dask: {self.out_dask}")
         self.out_shape_widget.value = self.out_dask.shape
+        self.out_sizes = sizes
+        self.crop_coords = crop_coords
 
     def populate_dims(self):
         logger.debug("populate_dims")
@@ -148,7 +330,9 @@ class SubStack(QWidget):
             logger.debug(f"set sizes {self.sizes}")
 
         except KeyError:
-            logger.debug(f"generating sizes from shape {self.dataset.data}")
+            logger.debug(
+                f"generating sizes from shape {self.dataset.data.shape}"
+            )
             self.sizes = {
                 f"dim-{i}": s for i, s in enumerate(self.dataset.data.shape)
             }
@@ -162,6 +346,14 @@ class SubStack(QWidget):
             self.path = None
             logger.debug(f"set path to None")
             show_warning(f"No path found in metadata")
+
+        try:
+            self.pixel_size_um = self.dataset.metadata["pixel_size_um"]
+            logger.debug(f"set pixel_size_um {self.pixel_size_um}")
+        except KeyError:
+            self.pixel_size_um = None
+            logger.debug(f"set pixel_size_um to None")
+            show_warning(f"No pixel_size_um found in metadata")
         try:
             self.dask_array = self.dataset.metadata["dask_array"]
             logger.debug(f"dask array from metadata {self.dask_array}")
@@ -182,9 +374,13 @@ class SubStack(QWidget):
 
     def update_axis_labels(self):
         logger.debug("Update axis labels")
-        self.viewer.dims.axis_labels = list(
-            filter(lambda a: a != "C", list(self.sizes))
-        )
+        labels = list(self.sizes)
+        if len(labels) > len(self.dataset.data.shape):  # axis_channel used
+            labels = list(filter(lambda a: a != "C", labels))
+            logger.debug("exclide 'C'")
+
+        self.viewer.dims.axis_labels = labels
+        logger.debug(f"new labels: {self.viewer.dims.axis_labels}")
 
     def reset_choices(self):
 
@@ -253,6 +449,7 @@ def crop_rois(
     if any([stack is None, ROIs is None]):
         return
     data = stack.data
+    meta = stack.metadata
     scale = stack.scale
     no_dim_scale = scale.max()
     centers = ROIs.data / no_dim_scale
@@ -260,14 +457,34 @@ def crop_rois(
 
     _crops = map(partial(crop_stack, stack=data, size=size), centers)
     axis = 1 if data.ndim > 3 else 0
-    good_crops = filter(lambda a: a is not None, _crops)
-    meta = stack.metadata
+    good_crops = list(filter(lambda a: a is not None, _crops))
+    try:
+        meta["sizes"] = update_dict_with_pos(
+            meta["sizes"], axis, "P", len(good_crops)
+        )
+    except KeyError:
+        logger.error(
+            rf"Failed updating meta[`sizes`] with \{'P': {len(good_crops)}\}"
+        )
+    meta["sizes"]["X"] = size
+    meta["sizes"]["y"] = size
+    meta["crop_centers"] = centers
+    meta["crop_size"] = size
 
     return (
         da.stack(good_crops, axis=axis),
         {"scale": scale, "metadata": meta},
         "image",
     )
+
+
+def update_dict_with_pos(input_dict: dict, pos, key, value):
+    """Inserts {key: value} into position"""
+    k = list(input_dict.keys())
+    k.insert(pos, key)
+    v = list(input_dict.values())
+    v.insert(pos, value)
+    return {kk: vv for kk, vv in zip(k, v)}
 
 
 def crop_stack(center: np.ndarray, stack: np.ndarray, size: int) -> np.ndarray:
