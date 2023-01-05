@@ -467,7 +467,7 @@ def crop_rois(
             rf"Failed updating meta[`sizes`] with \{'P': {len(good_crops)}\}"
         )
     meta["sizes"]["X"] = size
-    meta["sizes"]["y"] = size
+    meta["sizes"]["Y"] = size
     meta["crop_centers"] = centers
     meta["crop_size"] = size
 
