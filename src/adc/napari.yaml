@@ -36,6 +36,9 @@ contributions:
     - id: anchor-droplet-chip.SubStack
       python_name: adc._manual_rois:SubStack
       title: Make a sub stack
+    - id: anchor-droplet-chip.SplitAlong
+      python_name: adc._manual_rois:SplitAlong
+      title: Split the stack along one dimension
 
   widgets:
     - command: anchor-droplet-chip.DetectWells
@@ -50,6 +53,8 @@ contributions:
       display_name: Populate ROIs along the line
     - command: anchor-droplet-chip.SubStack
       display_name: Make a sub stack
+    - command: anchor-droplet-chip.SplitAlong
+      display_name: Split the stack along one dimension
 
   readers:
     - command: anchor-droplet-chip.get_reader
