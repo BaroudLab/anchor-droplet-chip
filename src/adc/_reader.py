@@ -168,7 +168,7 @@ def read_nd2(path):
                 "metadata": {
                     "sizes": data.sizes,
                     "path": path,
-                    "dask_array": ddata,
+                    "dask_data": ddata,
                     "pixel_size_um": pixel_size_um,
                     "channel_axis": channel_axis,
                     "channel_axis_name": "C",

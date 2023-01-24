@@ -142,7 +142,7 @@ class SplitAlong(QWidget):
             return
 
         try:
-            self.dask_data = self.dataset.metadata["dask_array"]
+            self.dask_data = self.dataset.metadata["dask_data"]
             logger.debug(f"Found dask_data in layer metadata {self.dask_data}")
         except KeyError:
             logger.debug(
@@ -240,7 +240,7 @@ class SubStack(QWidget):
     def make_new_layer(self):
         self.viewer.add_image(
             self.out_dask,
-            name=f"Substack {self.crop_coords}",
+            name=f"{self.dataset.name}_{self.crop_coords}",
             metadata={
                 "pixel_size_um": self.pixel_size_um,
                 "sizes": self.out_sizes,
@@ -266,12 +266,12 @@ class SubStack(QWidget):
             )
             slices.append(dim)
             if isinstance(dim, slice):
-                sizes[item.label] = size
+                sizes[item.label] = size // step + (1 if step > 1 else 0)
             else:
                 crop_coords[item.label] = start
-            if size < self.sizes[item.label]:
+            if size // step < self.sizes[item.label]:
                 crop_coords[item.label] = f"{start}:{stop}" + (
-                    f":{step}" if step > 0 else ""
+                    f":{step}" if step > 1 else ""
                 )
 
         try:
@@ -281,7 +281,7 @@ class SubStack(QWidget):
             show_warning(f"Problem with substack. Slices: {slices}, Exc: {e}")
             self.out_dask = self.dask_array
             logger.debug(
-                f"Problem with substack. Slices: {slices}. Out Dask stays the same ass input {self.out_dask}"
+                f"Problem with substack. Slices: {slices}. Out Dask stays the same as input {self.out_dask}"
             )
 
         logger.debug(f"Out dask: {self.out_dask}")
@@ -352,7 +352,7 @@ class SubStack(QWidget):
             logger.debug(f"set pixel_size_um to None")
             show_warning(f"No pixel_size_um found in metadata")
         try:
-            self.dask_array = self.dataset.metadata["dask_array"]
+            self.dask_array = self.dataset.metadata["dask_data"]
             logger.debug(f"dask array from metadata {self.dask_array}")
 
         except KeyError:
@@ -361,7 +361,7 @@ class SubStack(QWidget):
             else:
                 self.dask_array = self.dataset.data
             show_warning(
-                f"No dask_array found in metadata, creating one {self.dask_array}"
+                f"No dask_data found in metadata {self.dataset.metadata}, creating one {self.dask_array}"
             )
             logger.debug(f"dask array from array {self.dask_array}")
 
