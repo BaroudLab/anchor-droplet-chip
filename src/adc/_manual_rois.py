@@ -168,7 +168,7 @@ class SplitAlong(QWidget):
             show_warning(f"No pixel_size_um found in metadata")
 
         self.axis_selector.choices = list(
-            f"{ax}:{size}" for ax, size in self.sizes.items()
+            f"{ax}:{size}" for ax, size in list(self.sizes.items())[:-2]
         )
         logger.debug(f"update choices with {self.axis_selector.choices}")
 
