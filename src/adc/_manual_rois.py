@@ -44,7 +44,7 @@ class SplitAlong(QWidget):
             label="Choose axis", orientation="horizontal", choices=()
         )
         self.split_btn = PushButton(text="Split it!")
-        self.split_btn.clicked.connect(self.make_new_layer)
+        self.split_btn.clicked.connect(self.split_data)
         self.save_btn = PushButton(text="Save tifs!")
         self.save_btn.clicked.connect(self.save_tifs)
 
@@ -75,18 +75,28 @@ class SplitAlong(QWidget):
     def started():
         show_info("Saving started in the background")
 
+    def update_progress(data):
+        i, total, path, pr = data
+        show_info(f"{i+1}/{total} saved to {path}")
+        pr.update(i + 1)
+
     @thread_worker(
-        connect={"started": started, "finished": finished, "errored": errored}
+        connect={
+            "started": started,
+            "finished": finished,
+            "errored": errored,
+            "yielded": update_progress,
+        },
     )
     def save_tifs(self):
-        for i, (name, shape, path, _) in progress(
-            enumerate(ttt := self.saving_table.data.to_list()), total=len(ttt)
+        for i, (name, shape, path, _) in enumerate(
+            ttt := self.saving_table.data.to_list()
         ):
             logger.info(f"Saving {name} into {path}")
             try:
                 data = self.data_list[i].compute()
                 meta = self.meta.copy()
-                meta["spacing"] = meta["pixel_size_um"]
+                meta["spacing"] = (px_size := meta["pixel_size_um"])
                 meta["unit"] = "um"
                 data_formatted_imagej = (
                     np.expand_dims(data, axis=1)
@@ -94,13 +104,19 @@ class SplitAlong(QWidget):
                     else data
                 )
                 imwrite(
-                    path, data_formatted_imagej, imagej=True, metadata=meta
+                    path,
+                    data_formatted_imagej,
+                    imagej=True,
+                    resolution=(1 / px_size, 1 / px_size),
+                    metadata=meta,
                 )
                 self.saving_table.data[i] = [name, data.shape, path, "Saved!"]
+                yield i, self.total, path, self.progress
             except Exception as e:
                 logger.error(f"Failed saving {name} into {path}: {e}")
+                return False
 
-    def make_new_layer(self):
+    def split_data(self):
         channel_axis = self.axis_selector.choices.index(
             axis_sel := self.axis_selector.current_choice
         )
@@ -109,7 +125,7 @@ class SplitAlong(QWidget):
             slice_from_axis(array=self.dask_data, axis=channel_axis, element=i)
             for i in range(self.sizes[axis_sel.split(":")[0]])
         ]
-        letter, total = self.axis_selector.current_choice.split(":")
+        letter, self.total = self.axis_selector.current_choice.split(":")
         self.names = [
             f"{self.data_widget.current_choice}_{letter}={i}"
             for i, _ in enumerate(self.data_list)
@@ -129,6 +145,7 @@ class SplitAlong(QWidget):
             }
             for array, name in zip(self.data_list, self.names)
         ]
+        self.progress = progress(total=len(self.data_list))
 
     def init_data(self):
         try:
