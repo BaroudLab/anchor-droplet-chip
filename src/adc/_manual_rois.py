@@ -82,7 +82,7 @@ class SplitAlong(QWidget):
         for i, (name, shape, path, _) in progress(
             enumerate(ttt := self.saving_table.data.to_list()), total=len(ttt)
         ):
-            logger.debug(f"Saving {name} into {path}")
+            logger.info(f"Saving {name} into {path}")
             try:
                 data = self.data_list[i].compute()
                 meta = self.meta.copy()
@@ -145,7 +145,10 @@ class SplitAlong(QWidget):
             self.dask_data = self.dataset.metadata["dask_array"]
             logger.debug(f"Found dask_data in layer metadata {self.dask_data}")
         except KeyError:
-            self.dask_data = da.from_array(self.dataset.data)
+            logger.debug(
+                f"No dask_data in layer metadata {self.dataset.metadata}"
+            )
+            self.dask_data = da.asarray(self.dataset.data)
             logger.debug(
                 f"created dask_array from layer data {self.dask_data}"
             )
@@ -243,6 +246,7 @@ class SubStack(QWidget):
                 "sizes": self.out_sizes,
                 "substack_coords": self.crop_coords,
                 "source_path": self.path,
+                "dask_data": self.out_dask,
             },
         )
 
@@ -252,44 +256,29 @@ class SubStack(QWidget):
         sizes = {}
         crop_coords = {}
         for item in self.slice_container:
+            start = item.start.value
+            stop = item.stop.value
+            step = item.step.value
             dim = (
-                slice(item.start.value, item.stop.value)
-                if (size := item.stop.value - item.start.value) > 1
-                else (val := item.start.value)
+                slice(start, stop, step)
+                if (size := stop - start) > 1
+                else start
             )
             slices.append(dim)
             if isinstance(dim, slice):
                 sizes[item.label] = size
             else:
-                crop_coords[item.label] = val
-        logger.debug(f"Slices: {slices}")
-        if len(slices) == 6:
-            self.out_dask = self.dask_array[
-                slices[0],
-                slices[1],
-                slices[2],
-                slices[3],
-                slices[4],
-                slices[5],
-            ]
-        elif len(slices) == 5:
-            self.out_dask = self.dask_array[
-                slices[0],
-                slices[1],
-                slices[2],
-                slices[3],
-                slices[4],
-            ]
-        elif len(slices) == 4:
-            self.out_dask = self.dask_array[
-                slices[0], slices[1], slices[2], slices[3]
-            ]
-        elif len(slices) == 3:
-            self.out_dask = self.dask_array[slices[0], slices[1], slices[2]]
-        elif len(slices) == 2:
-            self.out_dask = self.dask_array[slices[0], slices[1]]
-        else:
-            show_warning(f"Problem with substack. Slices: {slices}")
+                crop_coords[item.label] = start
+            if size < self.sizes[item.label]:
+                crop_coords[item.label] = f"{start}:{stop}" + (
+                    f":{step}" if step > 0 else ""
+                )
+
+        try:
+            logger.debug(f"Slices: {slices}")
+            self.out_dask = self.dask_array[tuple(slices)]
+        except Exception as e:
+            show_warning(f"Problem with substack. Slices: {slices}, Exc: {e}")
             self.out_dask = self.dask_array
             logger.debug(
                 f"Problem with substack. Slices: {slices}. Out Dask stays the same ass input {self.out_dask}"
