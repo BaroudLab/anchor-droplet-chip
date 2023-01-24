@@ -304,10 +304,11 @@ class SubStack(QWidget):
             if size:
                 logger.debug(f"add {name} of size {size} to the container")
                 self.slice_container.append(
-                    s := SliceEdit(max=size, min=0, stop=size, label=name)
+                    SliceEdit(max=size, min=0, stop=size, label=name)
                 )
             else:
                 logger.debug(f"skip {name} of size {size}")
+        logger.debug(self.slice_container.asdict())
 
         self.compute_substack()
         self.slice_container.changed.connect(self.compute_substack)
@@ -377,7 +378,7 @@ class SubStack(QWidget):
         labels = list(self.sizes)
         if len(labels) > len(self.dataset.data.shape):  # axis_channel used
             labels = list(filter(lambda a: a != "C", labels))
-            logger.debug("exclide 'C'")
+            logger.debug("exclude 'C' ")
 
         self.viewer.dims.axis_labels = labels
         logger.debug(f"new labels: {self.viewer.dims.axis_labels}")
