@@ -318,7 +318,7 @@ class SubStack(QWidget):
         self.slice_container.clear()
 
     def init_meta(self):
-        logger.debug("init_meta")
+        logger.debug(f"init_meta for {self.data_widget.current_choice}")
         if self.dataset is None:
             logger.debug("no dataset")
             self.sizes = None
