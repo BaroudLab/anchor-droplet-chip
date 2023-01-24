@@ -23,6 +23,7 @@ from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+from napari.layers.utils.stack_utils import slice_from_axis
 from tifffile import imwrite
 
 
@@ -65,14 +66,13 @@ class SplitAlong(QWidget):
         self.init_data()
 
     def save_tifs(self):
-        for i, (name, path, _) in progress(
+        for i, (name, shape, path, _) in progress(
             enumerate(ttt := self.saving_table.data.to_list()), total=len(ttt)
         ):
             logger.debug(f"Saving {name} into {path}")
             try:
-                layer = self.viewer.layers[name]
-                data = layer.data.compute()
-                meta = layer.metadata.copy()
+                data = self.data_list[i].compute()
+                meta = self.meta.copy()
                 meta["spacing"] = meta["pixel_size_um"]
                 meta["unit"] = "um"
                 data_formatted_imagej = (
@@ -83,25 +83,24 @@ class SplitAlong(QWidget):
                 imwrite(
                     path, data_formatted_imagej, imagej=True, metadata=meta
                 )
-                self.saving_table.data[i] = [name, path, "Saved!"]
+                self.saving_table.data[i] = [name, data.shape, path, "Saved!"]
             except Exception as e:
                 logger.error(f"Failed saving {name} into {path}: {e}")
 
     def make_new_layer(self):
         channel_axis = self.axis_selector.choices.index(
-            self.axis_selector.current_choice
+            axis_sel := self.axis_selector.current_choice
         )
-        sizes = self.sizes.copy()
-        _ = sizes.pop("P")
-        meta = self.dataset.metadata.copy()
-        meta["sizes"] = sizes
-        meta["split_axis"] = self.axis_selector.current_choice
-        self.new_layers = self.viewer.add_image(
-            self.dataset.data,
-            name=f"{self.data_widget.current_choice}",
-            channel_axis=channel_axis,
-            metadata=meta,
-        )
+        self.meta = self.dataset.metadata
+        self.data_list = [
+            slice_from_axis(array=self.dask_data, axis=channel_axis, element=i)
+            for i in range(self.sizes[axis_sel.split(":")[0]])
+        ]
+        letter, total = self.axis_selector.current_choice.split(":")
+        self.names = [
+            f"{self.data_widget.current_choice}_{letter}={i}/{total}"
+            for i, _ in enumerate(self.data_list)
+        ]
         self.update_table()
 
     def update_table(self):
