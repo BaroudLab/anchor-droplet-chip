@@ -100,8 +100,8 @@ The data itself is opened ad dask array using nd2 python library.
 Some datasets are so big, it's hard to even to open them, let alone doing processing in them.
 `anchor-droplet-chip / Make a sub stack ` addresses this problem.
 Upon opening the plugin you'll see all  dimensions of you dataset, and the axes will become named accordingly.
-Simply shoose the subset of data you need, and click "Crop it!". This will create a new layer with the subset of data.
-Note that no new files are created in the process and in the background nd2 library lazy loading the data from original nd2 file.
+Simply choose the subset of data you need, and click "Crop it!". This will create a new layer with the subset of data.
+Note that no new files are created in the process and in the background nd2 library lazy loading chunks of data from the original nd2 file.
 
 ## Populate ROIs along the line
 Draw a line in the new shapes layer and call the widget. It will populate square ROIs along the line. Adjust the number of columns and rows. This way you can manually map the 2D wells on your chip.
