@@ -230,7 +230,7 @@ class SubStack(QWidget):
     def make_new_layer(self):
         self.viewer.add_image(
             self.out_dask,
-            name="Crop",
+            name=f"Substack {self.crop_coords}",
             metadata={
                 "pixel_size_um": self.pixel_size_um,
                 "sizes": self.out_sizes,
