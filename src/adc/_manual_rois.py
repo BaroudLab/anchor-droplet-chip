@@ -98,7 +98,7 @@ class SplitAlong(QWidget):
         ]
         letter, total = self.axis_selector.current_choice.split(":")
         self.names = [
-            f"{self.data_widget.current_choice}_{letter}={i}/{total}"
+            f"{self.data_widget.current_choice}_{letter}={i}"
             for i, _ in enumerate(self.data_list)
         ]
         self.update_table()
