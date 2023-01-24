@@ -107,14 +107,15 @@ class SplitAlong(QWidget):
     def update_table(self):
         self.saving_table.value = [
             {
-                "name": layer.name,
+                "name": name,
+                "shape": array.shape,
                 "path": os.path.join(
                     self.path_widget.value,
-                    layer.name.replace(":", "_").replace(" ", "_") + ".tif",
+                    name + ".tif",
                 ),
-                "saved": "",
+                "saved": "...",
             }
-            for i, layer in enumerate(self.new_layers)
+            for array, name in zip(self.data_list, self.names)
         ]
 
     def init_data(self):
