@@ -129,20 +129,13 @@ class SplitAlong(QWidget):
             return
 
         try:
-            self.sizes = self.dataset.metadata["sizes"]
-            logger.debug(f"set sizes {self.sizes}")
-
+            self.dask_data = self.dataset.metadata["dask_array"]
+            logger.debug(f"Found dask_data in layer metadata {self.dask_data}")
         except KeyError:
+            self.dask_data = da.from_array(self.dataset.data)
             logger.debug(
-                f"generating sizes from shape {self.dataset.data.shape}"
+                f"created dask_array from layer data {self.dask_data}"
             )
-            self.sizes = {
-                f"dim-{i}": s for i, s in enumerate(self.dataset.data.shape)
-            }
-            show_warning(f"No sizes found in metadata")
-            logger.debug(f"set sizes {self.sizes}")
-        logger.debug("init_meta")
-
         try:
             self.sizes = self.dataset.metadata["sizes"]
             logger.debug(f"set sizes {self.sizes}")
@@ -156,6 +149,7 @@ class SplitAlong(QWidget):
             }
             show_warning(f"No sizes found in metadata")
             logger.debug(f"set sizes {self.sizes}")
+        logger.debug("init_meta")
 
         try:
             self.path = self.dataset.metadata["path"]
