@@ -449,9 +449,9 @@ def crop_rois(
 ) -> napari.types.LayerDataTuple:
     if any([stack is None, ROIs is None]):
         return
-    data = stack.data
-    meta = stack.metadata
-    scale = stack.scale
+    data = stack.data.copy()
+    meta = stack.metadata.copy()
+    scale = stack.scale.copy()
     no_dim_scale = scale.max()
     centers = ROIs.data / no_dim_scale
     size = (ROIs.size // no_dim_scale).max()
