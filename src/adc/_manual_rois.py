@@ -18,12 +18,13 @@ from magicgui.widgets import (
 )
 from napari.layers import Image, Points, Shapes
 from napari.utils import progress
-from napari.utils.notifications import show_warning
+from napari.utils.notifications import show_error, show_info, show_warning
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 from napari.layers.utils.stack_utils import slice_from_axis
+from napari.qt.threading import thread_worker
 from tifffile import imwrite
 
 
@@ -65,6 +66,18 @@ class SplitAlong(QWidget):
 
         self.init_data()
 
+    def finished():
+        show_info("Saving done!")
+
+    def errored(e: Exception):
+        show_error(f"Error saving: {e}")
+
+    def started():
+        show_info("Saving started in the background")
+
+    @thread_worker(
+        connect={"started": started, "finished": finished, "errored": errored}
+    )
     def save_tifs(self):
         for i, (name, shape, path, _) in progress(
             enumerate(ttt := self.saving_table.data.to_list()), total=len(ttt)
