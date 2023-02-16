@@ -77,8 +77,16 @@ class SplitAlong(QWidget):
 
     def update_progress(data):
         i, total, path, pr = data
-        show_info(f"{i+1}/{total} saved to {path}")
-        pr.update(i + 1)
+        # show_info(f"{i+1}/{total} saved to {path}")
+        pr.update(1)
+
+    def start_export(self):
+        logger.info("Start export")
+        worker = self.save_tifs()
+
+    def stop_export(self):
+        logger.info("Stop requested")
+        self.stop = True
 
     @thread_worker(
         connect={
@@ -89,9 +97,15 @@ class SplitAlong(QWidget):
         },
     )
     def save_tifs(self):
-        for i, (name, shape, path, _) in enumerate(
-            ttt := self.saving_table.data.to_list()
-        ):
+        data = self.saving_table.data.to_list().copy()
+        self.save_btn.label = "STOP"
+        self.save_btn.clicked.disconnect()
+        self.save_btn.clicked.connect(self.stop_export)
+        self.stop = False
+        for i, (name, shape, path, _) in enumerate(data):
+            if self.stop:
+                logger.warning("Manual stop!")
+                break
             logger.info(f"Saving {name} into {path}")
             try:
                 data = self.data_list[i].compute()
@@ -115,6 +129,9 @@ class SplitAlong(QWidget):
             except Exception as e:
                 logger.error(f"Failed saving {name} into {path}: {e}")
                 return False
+
+        self.save_btn.clicked.disconnect()
+        self.save_btn.clicked.connect(self.start_export)
 
     def split_data(self):
         channel_axis = self.axis_selector.choices.index(
