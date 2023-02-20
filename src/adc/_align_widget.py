@@ -1,8 +1,10 @@
+import logging
 import os
 from asyncio.log import logger
 from functools import partial
 from multiprocessing import Pool
 
+import dask.array as da
 import numpy as np
 from magicgui.widgets import Container, create_widget
 from napari import Viewer
@@ -11,9 +13,12 @@ from qtpy.QtWidgets import QPushButton, QVBoxLayout, QWidget
 
 from adc import _sample_data, align
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 class DetectWells(QWidget):
-    "Finds the dropletw using template"
+    "Finds the droplets using template"
 
     def __init__(self, napari_viewer: Viewer) -> None:
         super().__init__()
@@ -50,23 +55,36 @@ class DetectWells(QWidget):
         self.reset_choices()
 
     def _detect(self):
-        try:
-            data = (
-                (
-                    data_layer := self.viewer.layers[
-                        self.select_image.current_choice
-                    ]
-                )
-                .data[3]
-                .compute()
-            )
-        except IndexError:
-            data = data_layer.data[2][:, ::2, ::2].compute()
+        logger.info("Start detecting")
+        data_layer = self.viewer.layers[self.select_image.current_choice]
+        if data_layer.multiscale:
+            n_scales = len(data_layer.data)
+            assert (
+                n_scales >= 2
+            ), "Weird multiscale, looking for 1/8 scale, or 1/4 at least"
+            if isinstance(data_layer.data[n_scales - 1], da.Array):
+                try:
+                    data = data_layer.data[3].compute()
+                except IndexError:
+                    data = data_layer.data[2][..., ::2, ::2].compute()
+            elif isinstance(data_layer.data[0], np.ndarray):
+                try:
+                    data = data_layer.data[3]
+                except IndexError:
+                    data = data_layer.data[2][..., ::2, ::2]
+        else:
+            data = data_layer.data[..., ::8, ::8]
+            if isinstance(data, da.Array):
+                data = data.compute()
+
         temp = self.viewer.layers[self.select_template.current_choice].data
         centers = self.viewer.layers[self.select_centers.current_choice].data
         ccenters = centers - np.array(temp.shape) / 2.0
 
-        p = Pool(6)
+        if data.ndim == 2:
+            data = (data,)
+        p = Pool(lll := len(data))
+        logger.info(f"Processing in parallel with {lll} cores")
         try:
             centers16 = p.map(
                 partial(locate_wells, template=temp, ccenters=ccenters), data
@@ -90,12 +108,12 @@ class DetectWells(QWidget):
             ].visible = False
 
         except Exception as e:
-            print(e)
+            logger.error(e)
         finally:
             p.close()
 
         try:
-            path = data_layer.metadata["path"]
+            path = data_layer.source.path
             self.viewer.layers["Droplets"].save(
                 os.path.join(path, ".droplets.csv")
             )
@@ -152,8 +170,8 @@ def locate_wells(bf, template, ccenters):
                 "angle": [0, 10],
             },
         )
-        print(tvec)
+        logger.info(tvec)
         return move_centers(ccenters, tvec, bf.shape)
     except Exception as e:
-        print("Oops", e)
+        logger.error("Error locating wells: ", e)
         return ccenters
