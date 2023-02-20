@@ -81,11 +81,17 @@ class CountCells(QWidget):
         n_peaks_per_well = list(map(len, peaks_raw))
         detections = reduce(add, peaks_raw)
 
-        centers_layer.text = n_peaks_per_well
+        self.viewer.add_points(
+            centers_layer.data,
+            name="Counts",
+            text=n_peaks_per_well,
+            face_color="#ffffff00",
+            edge_color="#ff007f00",
+        )
 
         self.viewer.add_points(
             detections,
-            name="Detections",
+            name="Detection",
             size=20,
             face_color="#ffffff00",
             edge_color="#ff007f88",
