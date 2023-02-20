@@ -37,7 +37,7 @@ contributions:
       python_name: adc._manual_rois:SubStack
       title: Make a sub stack
     - id: anchor-droplet-chip.SplitAlong
-      python_name: adc._manual_rois:SplitAlong
+      python_name: adc._split_stack:SplitAlong
       title: Split the stack along one dimension
 
   widgets:
