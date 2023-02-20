@@ -62,11 +62,8 @@ class SplitAlong(QWidget):
 
         self.init_data()
 
-    def finished(data):
-        if data == True:
-            show_info("Saving done!")
-        elif data == "stopped":
-            show_warning("Saving interrupted by user!")
+    def finished():
+        show_info("Saving done!")
 
     def errored(e: Exception):
         show_error(f"Error saving: {e}")
@@ -88,13 +85,17 @@ class SplitAlong(QWidget):
     def stop_export(self):
         logger.info("Stop requested")
         self.stop = True
-
+    
+    def abort():
+        show_warning("Export aborted")
+        
     @thread_worker(
         connect={
             "started": started,
             "finished": finished,
             "errored": errored,
             "yielded": update_progress,
+            "aborted": abort,
         },
     )
     def save_tifs(self):
