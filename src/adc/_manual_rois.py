@@ -97,8 +97,8 @@ class SubStack(QWidget):
             else:
                 crop_coords[item.label] = start
             if size // step < self.sizes[item.label]:
-                crop_coords[item.label] = f"{start}:{stop}" + (
-                    f":{step}" if step > 1 else ""
+                crop_coords[item.label] = f"{start}-{stop}" + (
+                    f"-{step}" if step > 1 else ""
                 )
 
         try:
@@ -114,7 +114,7 @@ class SubStack(QWidget):
         logger.debug(f"Out dask: {self.out_dask}")
         self.out_shape_widget.value = self.out_dask.shape
         self.out_sizes = sizes
-        self.crop_coords = crop_coords
+        self.crop_coords = "_".join([f"{k}={v.replace(':','-')}" for k,v in crop_coords.items()])
 
     def populate_dims(self):
         logger.debug("populate_dims")
