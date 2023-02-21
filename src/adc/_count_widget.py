@@ -14,6 +14,9 @@ from qtpy.QtWidgets import QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 from adc import count
 
+DETECTION_LAYER_NAME = "Detections"
+COUNTS_LAYER_NAME = "Counts"
+
 
 class CountCells(QWidget):
     "Detects cells in TRITC"
@@ -83,7 +86,7 @@ class CountCells(QWidget):
 
         self.viewer.add_points(
             centers_layer.data,
-            name="Counts",
+            name=COUNTS_LAYER_NAME,
             text=n_peaks_per_well,
             face_color="#ffffff00",
             edge_color="#ff007f00",
@@ -91,7 +94,7 @@ class CountCells(QWidget):
 
         self.viewer.add_points(
             detections,
-            name="Detection",
+            name=DETECTION_LAYER_NAME,
             size=20,
             face_color="#ffffff00",
             edge_color="#ff007f88",
@@ -100,7 +103,7 @@ class CountCells(QWidget):
             path = self.viewer.layers[
                 self.select_TRITC.current_choice
             ].metadata["path"]
-            self.viewer.layers["Detections"].save(
+            self.viewer.layers[DETECTION_LAYER_NAME].save(
                 os.path.join(path, ".detections.csv")
             )
             with open(os.path.join(path, ".counts.json"), "w") as fp:
