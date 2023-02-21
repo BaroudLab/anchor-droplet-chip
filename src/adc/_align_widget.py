@@ -16,6 +16,8 @@ from adc import _sample_data, align
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+DROPLETS_LAYER_NAME = "Droplets"
+
 
 class DetectWells(QWidget):
     "Finds the droplets using template"
@@ -95,7 +97,7 @@ class DetectWells(QWidget):
 
             droplets_layer = self.viewer.add_points(
                 self.aligned_centers,
-                name="Droplets",
+                name=DROPLETS_LAYER_NAME,
                 size=300,
                 face_color="#00000000",
                 edge_color="#88000088",
@@ -114,7 +116,7 @@ class DetectWells(QWidget):
 
         try:
             path = data_layer.source.path
-            self.viewer.layers["Droplets"].save(
+            self.viewer.layers[DROPLETS_LAYER_NAME].save(
                 os.path.join(path, ".droplets.csv")
             )
         except Exception as e:
