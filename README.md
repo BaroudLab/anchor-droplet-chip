@@ -14,7 +14,8 @@ pip install git+https://github.com/BaroudLab/anchor-droplet-chip.git
 ## Usage
 
 1. Notebook: `jupyter lab example.ipynb`
-2. Command line:
+2. Napari plugin: see the menu `Plugins / andhor-droplet-chips / ...
+3. Command line:
 
     `python -m adc.align --help`
 
@@ -57,4 +58,59 @@ python adc.merge day1/counts.csv day2/counts.csv table.csv
 
 ## Sample data
 
-Check the releases section: 6 raw tif files from day1 and 6 raw tif files from day 2 are available as well as their aligned versions and corresponding tables.
+### Batch processing:
+
+First you'll need to clone the repo locally and install it to have the scripts at hand.
+
+```bash
+git clone https://github.com/BaroudLab/anchor-droplet-chip.git
+
+cd anchor-droplet-chip
+
+pip install .
+```
+Make a data folder
+```bash
+mkdir data
+
+```
+Download the dataset from Zenodo https://zenodo.org/record/6940212
+```bash
+zenodo_get 6940212 -o data
+```
+Proceed with Snakemake pipeline to get tha table and plots. Be careful with the number of threads `-c` as a single thread can consume over 8 GBs of RAM.
+```bash
+snakemake -c4 -d data table.csv
+```
+
+# Napari plugin functionaluties
+
+## nd2 reader
+
+Open large nd2 file by drag-n-drop and select anchor-droplet-chip as a reader.
+The reader plugin will aotimatically detect the subchannels and split them in different layers.
+The reader will also extract the pixel size from metadata and save it as Layer.metadata["pixel_size_um"]
+The data itself is opened ad dask array using nd2 python library.
+
+## Substack
+
+Some datasets are so big, it's hard to even to open them, let alone doing processing in them.
+`anchor-droplet-chip / Make a sub stack ` addresses this problem.
+Upon opening the plugin you'll see all  dimensions of you dataset, and the axes will become named accordingly.
+Simply choose the subset of data you need, and click "Crop it!". This will create a new layer with the subset of data.
+Note that no new files are created in the process and in the background nd2 library lazy loading chunks of data from the original nd2 file.
+
+## Populate ROIs along the line
+Draw a line in the new shapes layer and call the widget. It will populate square ROIs along the line. Adjust the number of columns and rows. This way you can manually map the 2D wells on your chip.
+
+## Crop ROIs
+Use this widget to crop the mapped previously ROIs. The extracted crops can be saved as tifs.
+
+## Split along axis
+
+Allows to split any dataset along a selected axis and save the pieces as separate tifs (imagej format, so only TZCYX axes supported)
+* Select the axis name
+* Click Split it! and check the table with the names, shapes and paths.
+* To change the prefix, set the folder by clicking at "Choose folder"
+* Once the table lloks right, click "Save tifs" and wait. The colunm "saved" will be updated along the way. 
+![image](https://user-images.githubusercontent.com/11408456/214313498-5b1f8408-1fa3-4e24-810a-b9394e936c8e.png)

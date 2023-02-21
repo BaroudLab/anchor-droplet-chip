@@ -1,0 +1,76 @@
+name: anchor-droplet-chip
+contributions:
+  commands:
+
+    - id: anchor-droplet-chip.get_reader
+      title: Read dataset
+      python_name: adc._reader:napari_get_reader
+
+    - id: anchor-droplet-chip.make_centers
+      python_name: adc._sample_data:make_centers
+      title: Show centers
+
+    - id: anchor-droplet-chip.make_template
+      python_name: adc._sample_data:make_template
+      title: Show template
+
+    - id: anchor-droplet-chip.DetectWells
+      python_name: adc._align_widget:DetectWells
+      title: Detect wells
+
+    - id: anchor-droplet-chip.CombineStack
+      python_name: adc._combine_widget:CombineStack
+      title: Combine Stack
+
+    - id: anchor-droplet-chip.CountCells
+      python_name: adc._count_widget:CountCells
+      title: Count Cells
+
+    - id: anchor-droplet-chip.MakeProjection
+      python_name: adc._projection_stack:ProjectAlong
+      title: Make projection along selected axis
+
+    - id: anchor-droplet-chip.ManualRois
+      python_name: adc._manual_rois:make_matrix
+      title: Populate ROIs
+
+    - id: anchor-droplet-chip.CropRois
+      python_name: adc._manual_rois:crop_rois
+      title: Crop ROIs
+    - id: anchor-droplet-chip.SubStack
+      python_name: adc._manual_rois:SubStack
+      title: Make a sub stack
+    - id: anchor-droplet-chip.SplitAlong
+      python_name: adc._split_stack:SplitAlong
+      title: Split the stack along one dimension
+
+  widgets:
+    - command: anchor-droplet-chip.DetectWells
+      display_name: Detect wells
+    - command: anchor-droplet-chip.CombineStack
+      display_name: Combine stack
+    - command: anchor-droplet-chip.CountCells
+      display_name: Count Cells
+    - command: anchor-droplet-chip.CropRois
+      display_name: Crop ROIs
+    - command: anchor-droplet-chip.ManualRois
+      display_name: Populate ROIs along the line
+    - command: anchor-droplet-chip.SubStack
+      display_name: Make a sub stack
+    - command: anchor-droplet-chip.SplitAlong
+      display_name: Split the stack along one dimension
+    - command: anchor-droplet-chip.MakeProjection
+      display_name: Make projection along one dimension
+
+  readers:
+    - command: anchor-droplet-chip.get_reader
+      accepts_directories: True
+      filename_patterns: ['*.npy', '*.nd2', '*.zarr']
+
+  sample_data:
+    - command: anchor-droplet-chip.make_template
+      display_name: Show template
+      key: template
+    - command: anchor-droplet-chip.make_centers
+      display_name: Show centers
+      key: centers

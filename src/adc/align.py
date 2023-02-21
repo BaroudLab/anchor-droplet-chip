@@ -1,6 +1,7 @@
 import logging
 import sys
 from importlib.metadata import PackageNotFoundError, version
+from os import PathLike
 from typing import Tuple
 
 import fire
@@ -44,10 +45,10 @@ META_ALIGNED = {
     "LUTs": [GREY, GREEN, BLUE],
 }
 
-CONSTRAINTS = {
+CONSTRAINTS = {  # [mean, std]
     "scale": [1, 0.2],
-    "tx": [0, 500],
-    "ty": [0, 500],
+    "tx": [0, 50],
+    "ty": [0, 50],
     "angle": [0, 30],
 }
 
@@ -60,7 +61,6 @@ def align_stack(
     path_to_save: str = None,
     binnings: Tuple = (2, 16, 2),
     constraints: dict = CONSTRAINTS,
-    metadata: dict = META_ALIGNED,
 ):
     """
     stack should contain two channels: bright field and fluorescence.
@@ -273,15 +273,41 @@ def transform(image, tvec):
 
 
 def main(
-    data_path: str,
-    template_path: str,
-    mask_path: str,
+    data_path: PathLike,
+    template_path: PathLike,
+    mask_path: PathLike,
     binnings: tuple = (2, 16, 2),
-    path_to_save: str = "",
+    path_to_save: PathLike = "",
+    sx=CONSTRAINTS["tx"][1],
+    sy=CONSTRAINTS["ty"][1],
+    cx=CONSTRAINTS["tx"][0],
+    cy=CONSTRAINTS["ty"][0],
+    metadata: dict = META_ALIGNED,
 ):
     """
     reads the data from disk and runs alignment
     all paths should be .tif
+    Params:
+    -------
+    data_path, PathLike
+        path to tif with brightfield and fluorescence channels
+    template_path, PathLike
+        path to the brightfield template, normally binned.
+    mask_path, PathLike
+        path to the labels tif
+    binnings, tuple
+        data, template, mask binnings. Default: (2,16,2)
+    path_to_save, PathLike
+        path to save the aligned stack
+    sx, float
+        standard deviation for x displacement in pixels
+    sy, float
+        standard deviation for y displacement in pixels
+    cx, float
+        mean value for x displacement in pixels
+    cy, float
+        mean value for y displacement in pixels
+
 
 
     """
@@ -299,21 +325,33 @@ def main(
         path_to_save = data_path.replace(".tif", "-aligned.tif")
         logger.warning(f"No path_to_save provided, using {path_to_save}")
     stack = imread(data_path)
-    logger.info(f"Open data_path with the shape {stack.shape}")
+    logger.info(f"Open `{data_path}` with the shape {stack.shape}")
     template = imread(template_path)
-    logger.info(f"Open template_path with the shape {template.shape}")
+    logger.info(f"Open `{template_path}` with the shape {template.shape}")
     mask = imread(mask_path)
-    logger.info(f"Open mask_path with the shape {mask.shape}")
-    logger.info(f"Start aligning")
+    logger.info(f"Open `{mask_path}` with the shape {mask.shape}")
+    logger.info(f"Using binnings {binnings}")
+
+    constraints = CONSTRAINTS.copy()
+    constraints["tx"] = (cx, sx)
+    constraints["ty"] = (cy, sy)
+    logger.info(f"Using constraints {constraints}")
+
+    logger.info(f"Start aligning `{data_path}`")
     try:
         aligned_stack, tvec = align_stack(
-            stack, template, mask, path_to_save=path_to_save, binnings=binnings
+            stack,
+            template,
+            mask,
+            path_to_save=path_to_save,
+            binnings=binnings,
+            constraints=constraints,
         )
     except Exception as e:
         logger.error(f"Alignment failed due to {e.args}")
         raise e
     logger.info(f"Finished aligning. tvec: {tvec}")
-    imwrite(path_to_save, aligned_stack, imagej=True, metadata=META_ALIGNED)
+    imwrite(path_to_save, aligned_stack, imagej=True, metadata=metadata)
     logger.info(f"Saved aligned stack {path_to_save}")
     sys.stdout.write(path_to_save)
     sys.exit(0)
