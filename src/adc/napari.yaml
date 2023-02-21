@@ -26,6 +26,10 @@ contributions:
       python_name: adc._count_widget:CountCells
       title: Count Cells
 
+    - id: anchor-droplet-chip.MakeProjection
+      python_name: adc._projection_stack:ProjectAlong
+      title: Make projection along selected axis
+
     - id: anchor-droplet-chip.ManualRois
       python_name: adc._manual_rois:make_matrix
       title: Populate ROIs
@@ -55,6 +59,8 @@ contributions:
       display_name: Make a sub stack
     - command: anchor-droplet-chip.SplitAlong
       display_name: Split the stack along one dimension
+    - command: anchor-droplet-chip.MakeProjection
+      display_name: Make projection along one dimension
 
   readers:
     - command: anchor-droplet-chip.get_reader
