@@ -88,7 +88,7 @@ class SplitAlong(QWidget):
     
     def abort():
         show_warning("Export aborted")
-        
+
     @thread_worker(
         connect={
             "started": started,
@@ -117,7 +117,7 @@ class SplitAlong(QWidget):
                 meta["unit"] = "um"
                 data_formatted_imagej = (
                     np.expand_dims(data, axis=1)
-                    if "Z" not in meta["sizes"]
+                    if "Z" not in meta["sizes"] and len(data.shape) > 3
                     else data
                 )
                 imwrite(
@@ -228,6 +228,8 @@ class SplitAlong(QWidget):
             f"{ax}:{size}" for ax, size in list(self.sizes.items())[:-2]
         )
         logger.debug(f"update choices with {self.axis_selector.choices}")
+        self.save_btn.clicked.disconnect()
+        self.save_btn.clicked.connect(self.start_export)
 
     def reset_choices(self):
         self.data_widget.reset_choices()
