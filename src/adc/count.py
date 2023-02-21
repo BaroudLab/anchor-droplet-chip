@@ -52,10 +52,10 @@ def get_cell_numbers(
 
     props = regionprops(labels)
 
-    def get_n_peaks(i):
+    def get_raw_peaks(i):
 
         if bf is None:
-            return get_peak_number(
+            return get_peaks(
                 multiwell_image[props[i].slice],
                 plot=plot,
                 dif_gauss_sigma=dif_gauss_sigma,
@@ -64,7 +64,7 @@ def get_cell_numbers(
                 title=props[i].label,
             )
         else:
-            return get_peak_number(
+            return get_peaks(
                 multiwell_image[props[i].slice],
                 plot=plot,
                 dif_gauss_sigma=dif_gauss_sigma,
@@ -72,18 +72,17 @@ def get_cell_numbers(
                 min_distance=min_distance,
                 title=props[i].label,
                 bf_crop=bf[props[i].slice],
-                return_std=True,
             )
 
-    n_cells = list(map(get_n_peaks, range(labels.max())))
-    # return n_cells, props
+    peaks = list(map(get_raw_peaks, range(labels.max())))
+    n_cells = list(map(len, peaks))
     return pd.DataFrame(
         [
             {
                 "label": prop.label,
                 "x": int(prop.centroid[1]),
                 "y": int(prop.centroid[0]),
-                "n_cells": n_cell[0],
+                "n_cells": n_cell,
                 **kwargs,
             }
             for prop, n_cell in zip(props, n_cells)
@@ -100,6 +99,14 @@ def crop(stack: np.ndarray, center: tuple, size: int):
     return im
 
 
+def crop2d(img: np.ndarray, center: tuple, size: int):
+    im = img[
+        int(center[0]) - size // 2 : int(center[0]) + size // 2,
+        int(center[1]) - size // 2 : int(center[1]) + size // 2,
+    ]
+    return im
+
+
 def gdif(array2d, dif_gauss_sigma=(1, 3)):
     array2d = array2d.astype("f")
     return ndi.gaussian_filter(
@@ -107,15 +114,40 @@ def gdif(array2d, dif_gauss_sigma=(1, 3)):
     ) - ndi.gaussian_filter(array2d, sigma=dif_gauss_sigma[1])
 
 
-def get_peak_number(
+def add_chip_index_to_coords(coords: tuple, chip_index):
+    return (chip_index, *coords)
+
+
+def get_global_coordinates_from_well_coordinates(
+    napari_center: tuple, fluo, size
+):
+    chip_index, y, x = napari_center
+    peaks = get_global_peaks(
+        fluo_data=fluo[int(chip_index)], center=(y, x), size=size
+    )
+    peaks_with_chip_index = [
+        add_chip_index_to_coords(p, napari_center[0]) for p in peaks
+    ]
+    return peaks_with_chip_index
+
+
+def get_global_peaks(
+    fluo_data: np.ndarray, center: np.ndarray, size: np.ndarray
+):
+    peaks = get_peaks(
+        crop2d(fluo_data, center, size),
+    )
+    return np.array(peaks) + np.array(center) - size / 2
+
+
+def get_peaks(
     crop2d,
-    dif_gauss_sigma=(1, 3),
+    dif_gauss_sigma=(3, 5),
     min_distance=3,
-    threshold_abs=5,
+    threshold_abs=2,
     plot=False,
     title="",
     bf_crop=None,
-    return_std=False,
 ):
     image_max = gdif(crop2d, dif_gauss_sigma)
     peaks = peak_local_max(
@@ -147,21 +179,17 @@ def get_peak_number(
             ax[2].plot(peaks[:, 1], peaks[:, 0], "r.")
             plt.show()
 
-    if return_std:
-        return len(peaks), crop2d.std()
-    else:
-        return (len(peaks),)
+    return peaks
 
 
 def get_peaks_per_frame(stack3d, dif_gauss_sigma=(1, 3), **kwargs):
+    """Counts particles in the timelapse"""
     image_ref = gdif(stack3d[0], dif_gauss_sigma)
     thr = 5 * image_ref.std()
-    return list(
-        map(partial(get_peak_number, threshold_abs=thr, **kwargs), stack3d)
-    )
+    return list(map(partial(get_peaks, threshold_abs=thr, **kwargs), stack3d))
 
 
-def get_peaks_all_wells(stack, centers, size, plot=0):
+def get_peaks_timelapse_all_wells(stack, centers, size, plot=0):
     n_peaks = []
     for c in centers:
         print(".", end="")
@@ -238,11 +266,15 @@ def main(
     table.to_csv(save_path_csv, index=None)
     logger.info(f"Saved table to {save_path_csv}")
     if poisson:
-        logger.info("Fitting Poisson")
-        _lambda = fit_poisson(
-            table.n_cells, save_fig_path=save_path_csv.replace(".csv", ".png")
-        )
-        logger.info(f"Mean number of cells: {_lambda:.2f}")
+        try:
+            logger.info("Fitting Poisson")
+            _lambda = fit_poisson(
+                table.n_cells,
+                save_fig_path=save_path_csv.replace(".csv", ".png"),
+            )
+            logger.info(f"Mean number of cells: {_lambda:.2f}")
+        except RuntimeError as e:
+            logger.warning(f"no poisson fit due to {e}")
     return
 
 
