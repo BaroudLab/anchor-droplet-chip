@@ -38,7 +38,7 @@ contributions:
       python_name: adc._manual_rois:crop_rois
       title: Crop ROIs
     - id: anchor-droplet-chip.SubStack
-      python_name: adc._manual_rois:SubStack
+      python_name: adc._sub_stack:SubStack
       title: Make a sub stack
     - id: anchor-droplet-chip.SplitAlong
       python_name: adc._split_stack:SplitAlong
