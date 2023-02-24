@@ -1,30 +1,26 @@
 import logging
-import os
+import logging.config
 
 import dask.array as da
 import napari
-import numpy as np
 from magicgui.widgets import (
+    ComboBox,
     Container,
-    FileEdit,
     PushButton,
     RadioButtons,
-    ComboBox,
-    Table,
     create_widget,
 )
 from napari.layers import Image
-from napari.utils import progress
-from napari.utils.notifications import show_error, show_info, show_warning
+from napari.utils.notifications import show_warning
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
+logging.config.fileConfig("logging.conf")
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-from napari.layers.utils.stack_utils import slice_from_axis
-from napari.qt.threading import thread_worker
-from tifffile import imwrite
+
 
 OPS = ["max", "mean"]
+
 
 class ProjectAlong(QWidget):
     def __init__(self, napari_viewer: napari.Viewer) -> None:
@@ -66,17 +62,25 @@ class ProjectAlong(QWidget):
         self.meta = self.dataset.metadata
 
         selected_op = self.op_widget.current_choice
-        self.projection = self.dask_data.__getattribute__(selected_op)(axis=axis)
-        
-        _ = self.meta["sizes"].pop(letter)
-        logger.info(
-            f"Projection result: {self.projection}"
+        self.projection = self.dask_data.__getattribute__(selected_op)(
+            axis=axis
         )
+
+        _ = self.meta["sizes"].pop(letter)
+        logger.info(f"Projection result: {self.projection}")
+
+        labels = list(self.meta["sizes"])
+        try:
+            channel_axis = labels.index("C")
+        except IndexError:
+            channel_axis = None
+        self.meta["dask_data"] = self.projection
+
         self.viewer.add_image(
-            self.projection,
-            name = self.dataset.name + "_" + selected_op ,
+            data=self.projection,
+            channel_axis=channel_axis,
+            name=self.dataset.name + "_" + selected_op,
             metadata=self.meta,
-            channel_axis=list(self.meta["sizes"]).index("C")
         )
 
     def init_data(self):
@@ -136,7 +140,7 @@ class ProjectAlong(QWidget):
             f"{ax}:{size}" for ax, size in list(self.sizes.items())[:-2]
         )
         logger.debug(f"update choices with {self.axis_selector.choices}")
-        
+
     def reset_choices(self):
         self.data_widget.reset_choices()
         logger.debug(f"reset choises from input {self.data_widget.choices}")
