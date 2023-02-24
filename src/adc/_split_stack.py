@@ -1,4 +1,5 @@
 import logging
+import logging.config
 import os
 
 import dask.array as da
@@ -17,11 +18,16 @@ from napari.utils import progress
 from napari.utils.notifications import show_error, show_info, show_warning
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
+logging.config.fileConfig("logging.conf")
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+
+
 from napari.layers.utils.stack_utils import slice_from_axis
 from napari.qt.threading import thread_worker
 from tifffile import imwrite
+
+from ._sub_stack import SubStack
 
 
 class SplitAlong(QWidget):
@@ -85,7 +91,7 @@ class SplitAlong(QWidget):
     def stop_export(self):
         logger.info("Stop requested")
         self.stop = True
-    
+
     def abort():
         show_warning("Export aborted")
 
@@ -143,7 +149,7 @@ class SplitAlong(QWidget):
         letter, size = axis_sel.split(":")
         self.total = int(size)
         axis = self.axis_selector.choices.index(axis_sel)
-        self.meta = self.dataset.metadata
+        self.meta = self.selected_layer.metadata
         self.data_list = [
             slice_from_axis(array=self.dask_data, axis=axis, element=i)
             for i in range(self.total)
@@ -173,7 +179,9 @@ class SplitAlong(QWidget):
 
     def init_data(self):
         try:
-            self.dataset = self.viewer.layers[self.data_widget.current_choice]
+            self.selected_layer = self.viewer.layers[
+                self.data_widget.current_choice
+            ]
         except KeyError:
             logger.debug("no dataset")
             self.sizes = None
@@ -183,33 +191,34 @@ class SplitAlong(QWidget):
             return
 
         try:
-            self.dask_data = self.dataset.metadata["dask_data"]
+            self.dask_data = self.selected_layer.metadata["dask_data"]
             logger.debug(f"Found dask_data in layer metadata {self.dask_data}")
         except KeyError:
             logger.debug(
-                f"No dask_data in layer metadata {self.dataset.metadata}"
+                f"No dask_data in layer metadata {self.selected_layer.metadata}"
             )
-            self.dask_data = da.asarray(self.dataset.data)
+            self.dask_data = da.asarray(self.selected_layer.data)
             logger.debug(
                 f"created dask_array from layer data {self.dask_data}"
             )
         try:
-            self.sizes = self.dataset.metadata["sizes"]
+            self.sizes = self.selected_layer.metadata["sizes"]
             logger.debug(f"set sizes {self.sizes}")
 
         except KeyError:
             logger.debug(
-                f"generating sizes from shape {self.dataset.data.shape}"
+                f"generating sizes from shape {self.selected_layer.data.shape}"
             )
             self.sizes = {
-                f"dim-{i}": s for i, s in enumerate(self.dataset.data.shape)
+                f"dim-{i}": s
+                for i, s in enumerate(self.selected_layer.data.shape)
             }
             show_warning(f"No sizes found in metadata")
             logger.debug(f"set sizes {self.sizes}")
         logger.debug("init_meta")
 
         try:
-            self.path = self.dataset.metadata["path"]
+            self.path = self.selected_layer.metadata["path"]
             logger.debug(f"set path {self.path}")
         except KeyError:
             self.path = None
@@ -217,7 +226,7 @@ class SplitAlong(QWidget):
             show_warning(f"No path found in metadata")
 
         try:
-            self.pixel_size_um = self.dataset.metadata["pixel_size_um"]
+            self.pixel_size_um = self.selected_layer.metadata["pixel_size_um"]
             logger.debug(f"set pixel_size_um {self.pixel_size_um}")
         except KeyError:
             self.pixel_size_um = None
@@ -230,6 +239,10 @@ class SplitAlong(QWidget):
         logger.debug(f"update choices with {self.axis_selector.choices}")
         self.save_btn.clicked.disconnect()
         self.save_btn.clicked.connect(self.start_export)
+
+        SubStack.update_axis_labels(
+            self.sizes, self.selected_layer.data, self.viewer.dims
+        )
 
     def reset_choices(self):
         self.data_widget.reset_choices()
