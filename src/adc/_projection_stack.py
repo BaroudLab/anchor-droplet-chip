@@ -75,7 +75,8 @@ class ProjectAlong(QWidget):
         self.viewer.add_image(
             self.projection,
             name = self.dataset.name + "_" + selected_op ,
-            metadata=self.meta
+            metadata=self.meta,
+            channel_axis=list(self.meta["sizes"]).index("C")
         )
 
     def init_data(self):
