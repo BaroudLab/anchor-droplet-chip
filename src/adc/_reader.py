@@ -156,13 +156,16 @@ def read_nd2(path):
     # colormap = ["gray", "green"]
     try:
         channel_axis = list(data.sizes.keys()).index("C")
+        channel_axis_name = "C"
     except ValueError:
         print(f"No channels, {data.sizes}")
         channel_axis = None
+        channel_axis_name = None
         # colormap = ["gray"]
     return [
         (
-            ddata,
+            ddata if max(ddata.shape) < 4000 \
+                  else [ddata[...,::2**i, ::2**i] for i in range(4)],
             {
                 "channel_axis": channel_axis,
                 "metadata": {
@@ -171,7 +174,7 @@ def read_nd2(path):
                     "dask_data": ddata,
                     "pixel_size_um": pixel_size_um,
                     "channel_axis": channel_axis,
-                    "channel_axis_name": "C",
+                    "channel_axis_name": channel_axis_name,
                 },
             },
             "image",
