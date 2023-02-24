@@ -68,8 +68,17 @@ class ProjectAlong(QWidget):
 
         _ = self.meta["sizes"].pop(letter)
         logger.info(f"Projection result: {self.projection}")
+
+        labels = list(self.meta["sizes"])
+        try:
+            channel_axis = labels.index("C")
+        except IndexError:
+            channel_axis = None
+        self.meta["dask_data"] = self.projection
+
         self.viewer.add_image(
-            self.projection,
+            data=self.projection,
+            channel_axis=channel_axis,
             name=self.dataset.name + "_" + selected_op,
             metadata=self.meta,
         )
