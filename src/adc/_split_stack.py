@@ -62,7 +62,6 @@ class SplitAlong(QWidget):
         )
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.input_container.native)
-        self.layout.addWidget(self.path_widget.native)
         self.layout.addStretch()
         self.setLayout(self.layout)
 
@@ -105,7 +104,6 @@ class SplitAlong(QWidget):
         },
     )
     def save_tifs(self):
-
         data = self.saving_table.data.to_list().copy()
         self.save_btn.label = "STOP"
         self.save_btn.clicked.disconnect()
