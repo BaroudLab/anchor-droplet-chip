@@ -112,5 +112,5 @@ Allows to split any dataset along a selected axis and save the pieces as separat
 * Select the axis name
 * Click Split it! and check the table with the names, shapes and paths.
 * To change the prefix, set the folder by clicking at "Choose folder"
-* Once the table lloks right, click "Save tifs" and wait. The colunm "saved" will be updated along the way.
+* Once the table looks right, click "Save tifs" and wait. The colunm "saved" will be updated along the way.
 ![image](https://user-images.githubusercontent.com/11408456/214313498-5b1f8408-1fa3-4e24-810a-b9394e936c8e.png)
