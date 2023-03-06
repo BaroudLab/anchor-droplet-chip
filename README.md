@@ -1,5 +1,5 @@
 # ⚓ anchor-droplet-chip
-Analyse achored droplets with fluorescent bacteria.
+## Measuring single-cell susceptibility to antibiotics within monoclonal fluorescent bacteria.
 
 We are imaging the entire chip using 20x 0.7NA objective lens using automatic stitching in NIS.
 Bright-field image 2D and TRITC-3D acquired. The 3D stack is converted to 2D using maximum projection in NIS or Fiji. Both channels are then merged together and saved as a tif stack. After that this package can be applied to detect the individual droplets and count the fluorescent cells.
