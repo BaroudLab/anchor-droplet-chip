@@ -72,7 +72,7 @@ class ProjectAlong(QWidget):
         labels = list(self.meta["sizes"])
         try:
             channel_axis = labels.index("C")
-        except IndexError:
+        except ValueError:
             channel_axis = None
         self.meta["dask_data"] = self.projection
 
