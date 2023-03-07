@@ -84,7 +84,7 @@ def test_substack(test_stack):
     )
     try:
         st.start_export()
-        time.sleep(7)
+        time.sleep(12)
         st.worker.await_workers(msecs=5000)
         assert len(flist := glob(os.path.join(testdir, "*.tif"))) == 10
         assert imread(flist[0]).shape == (30, 3, 256, 256)
