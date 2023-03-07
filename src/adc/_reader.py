@@ -162,7 +162,7 @@ def read_nd2(path):
         # colormap = ["gray"]
     return [
         (
-            ddata,
+ddata if max(ddata.shape) < 4000 else [ddata[...,::2**i,::2**i] for i in range(4)],
             {
                 "channel_axis": channel_axis,
                 "metadata": {
