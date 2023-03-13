@@ -9,7 +9,7 @@ As the chips are bonded to the coverslip manually, they contain a randon tilt an
 
 ## Installation
 ```bash
-pip install git+https://github.com/BaroudLab/anchor-droplet-chip.git
+pip install anchor-droplet-chip
 ```
 ## Usage
 
