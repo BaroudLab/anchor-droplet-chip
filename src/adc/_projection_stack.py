@@ -62,6 +62,7 @@ class ProjectAlong(QWidget):
         self.meta = self.dataset.metadata
 
         selected_op = self.op_widget.current_choice
+
         self.projection = self.dask_data.__getattribute__(selected_op)(
             axis=axis
         )
@@ -72,12 +73,13 @@ class ProjectAlong(QWidget):
         labels = list(self.meta["sizes"])
         try:
             channel_axis = labels.index("C")
-        except IndexError:
+        except ValueError:
             channel_axis = None
         self.meta["dask_data"] = self.projection
-
+        ddata = self.projection 
+        
         self.viewer.add_image(
-            data=self.projection,
+            ddata if max(ddata.shape) < 4000 else [ddata[...,::2**i,::2**i] for i in range(4)],
             channel_axis=channel_axis,
             name=self.dataset.name + "_" + selected_op,
             metadata=self.meta,
