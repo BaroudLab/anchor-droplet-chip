@@ -85,7 +85,7 @@ class SplitAlong(QWidget):
         logger.info("Start export")
 
         self.progress = progress(total=len(self.data_list))
-        worker = self.save_tifs()
+        self.worker = self.save_tifs()
 
     def stop_export(self):
         logger.info("Stop requested")
