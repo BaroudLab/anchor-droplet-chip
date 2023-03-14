@@ -27,5 +27,5 @@ def test_split_to_layers(make_napari_viewer, test_stack):
     splitter = SplitAlong(viewer)
     splitter.split_selector.value = "layers"
     splitter.axis_selector.value = "C:3"
-    splitter.split()
+    splitter.split_data()
     assert len(viewer.layers) == 4
