@@ -22,7 +22,8 @@ def test_stack():
 
 def test_split_to_layers(make_napari_viewer):
     viewer = make_napari_viewer()
-    viewer.add_image(**test_stack())
+    dataset = test_stack
+    viewer.add_image(**dataset)
     assert len(viewer.layers) == 1
     splitter = SplitAlong(viewer)
     splitter.split_selector.value = "layers"
