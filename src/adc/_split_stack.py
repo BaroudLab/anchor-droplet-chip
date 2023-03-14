@@ -29,6 +29,9 @@ from tifffile import imwrite
 
 from ._sub_stack import SubStack
 
+SPLIT_OUT_CHOICES = ("files", "layers")
+MAX_SPLIT_SIZE = 50
+
 
 class SplitAlong(QWidget):
     def __init__(self, napari_viewer: napari.Viewer) -> None:
@@ -45,8 +48,14 @@ class SplitAlong(QWidget):
         self.axis_selector = RadioButtons(
             label="Choose axis", orientation="horizontal", choices=()
         )
+        self.split_selector = RadioButtons(
+            label="target", orientation="horizontal", choices=SPLIT_OUT_CHOICES
+        )
+        self.split_selector.value = SPLIT_OUT_CHOICES[0]
+
         self.split_btn = PushButton(text="Split it!")
         self.split_btn.clicked.connect(self.split_data)
+
         self.save_btn = PushButton(text="Save tifs!")
         self.save_btn.clicked.connect(self.start_export)
 
@@ -54,6 +63,7 @@ class SplitAlong(QWidget):
             widgets=[
                 self.data_widget,
                 self.axis_selector,
+                self.split_selector,
                 self.split_btn,
                 self.path_widget,
                 self.saving_table,
@@ -146,8 +156,15 @@ class SplitAlong(QWidget):
         axis_sel = self.axis_selector.current_choice
         letter, size = axis_sel.split(":")
         self.total = int(size)
-        axis = self.axis_selector.choices.index(axis_sel)
+        axis = list(self.sizes).index(letter)
         self.meta = self.selected_layer.metadata
+        if self.split_selector.value == "layers":
+            self.viewer.add_image(
+                self.dask_data,
+                channel_axis=axis,
+                name=self.data_widget.current_choice,
+            )
+            return
         self.data_list = [
             slice_from_axis(array=self.dask_data, axis=axis, element=i)
             for i in range(self.total)
@@ -232,8 +249,11 @@ class SplitAlong(QWidget):
             show_warning(f"No pixel_size_um found in metadata")
 
         self.axis_selector.choices = list(
-            f"{ax}:{size}" for ax, size in list(self.sizes.items())[:-2]
+            f"{ax}:{size}"
+            for ax, size in list(self.sizes.items())[:]
+            if size < MAX_SPLIT_SIZE
         )
+
         logger.debug(f"update choices with {self.axis_selector.choices}")
         self.save_btn.clicked.disconnect()
         self.save_btn.clicked.connect(self.start_export)
