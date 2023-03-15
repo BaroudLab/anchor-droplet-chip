@@ -4,6 +4,7 @@ from asyncio.log import logger
 from functools import partial, reduce
 from operator import add
 
+import dask.array as da
 import pandas as pd
 from magicgui.widgets import Container, create_widget
 from napari import Viewer
@@ -52,11 +53,15 @@ class CountCells(QWidget):
     def _update_detections(self):
         show_info("Loading the data")
         with progress(desc="Loading data") as prb:
-            fluo = (
-                self.viewer.layers[self.select_TRITC.current_choice]
-                .data[0]  # maximum resilution from the piramide
-                .compute()
-            )  # max resolution
+            selected_layer = self.viewer.layers[
+                self.select_TRITC.current_choice
+            ]
+            if selected_layer.multiscale:
+                ddata = selected_layer.data[0]
+            else:
+                ddata = selected_layer.data
+            if isinstance(ddata, da.Array):
+                ddata = ddata.compute()
             prb.close()
         centers = (
             centers_layer := self.viewer.layers[
@@ -74,7 +79,7 @@ class CountCells(QWidget):
             map(
                 partial(
                     count.get_global_coordinates_from_well_coordinates,
-                    fluo=fluo,
+                    fluo=ddata,
                     size=self.radius,
                 ),
                 progress(centers, desc="Localizing:"),
