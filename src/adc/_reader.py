@@ -4,6 +4,9 @@ import os
 import dask
 import nd2
 import pandas as pd
+import tifffile as tf
+
+from ._align_widget import DROPLETS_LAYER_NAME
 
 
 def napari_get_reader(path):
@@ -33,7 +36,59 @@ def napari_get_reader(path):
     if path.endswith(".zarr"):
         return read_zarr
 
+    if path.endswith(".tif"):
+        return read_tif
+
+    if path.endswith(".csv"):
+        return read_csv
+
     return None
+
+
+def read_csv(path):
+    data = pd.read_csv(path, index_col=0)
+    return [
+        (
+            data.values,
+            dict(
+                name=DROPLETS_LAYER_NAME,
+                size=300,
+                face_color="#00000000",
+                edge_color="#00880088",
+            ),
+            "points",
+        )
+    ]
+
+
+def read_tif(path):
+    data = tf.TiffFile(path)
+    arr = data.asarray()
+    colormap = (
+        ["gray", "yellow"]
+        if all([a in path for a in ["BF", "TRITC"]])
+        else None
+    )
+    try:
+        channel_axis = (
+            arr.shape.index(data.imagej_metadata["channels"])
+            if data.is_imagej
+            else None
+        )
+    except (ValueError, KeyError):
+        channel_axis = None
+
+    return [
+        (
+            arr,
+            {
+                "channel_axis": channel_axis,
+                "metadata": {"path": path},
+                "colormap": colormap,
+            },
+            "image",
+        )
+    ]
 
 
 def read_zarr(path):
@@ -164,7 +219,9 @@ def read_nd2(path):
         # colormap = ["gray"]
     return [
         (
-ddata if max(ddata.shape) < 4000 else [ddata[...,::2**i,::2**i] for i in range(4)],
+            ddata
+            if max(ddata.shape) < 4000
+            else [ddata[..., :: 2**i, :: 2**i] for i in range(4)],
             {
                 "channel_axis": channel_axis,
                 "metadata": {
