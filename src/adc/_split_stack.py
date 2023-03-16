@@ -113,6 +113,10 @@ class SplitAlong(QWidget):
             if self.stop:
                 logger.warning("Manual stop!")
                 return "stopped"
+            if os.path.exists(path):
+                logger.info(f"File exists {path}")
+                yield i, self.total, path, self.progress
+
             logger.info(f"Saving {name} into {path}")
             try:
                 data = self.data_list[i].compute()
