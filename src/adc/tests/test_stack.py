@@ -32,15 +32,6 @@ def test_stack():
 def test_substack(test_stack):
     v = napari.Viewer()
     v.add_image(**test_stack)
-    # v.add_image(
-    #     tpcz_stack,
-    #     channel_axis=2,
-    #     metadata={
-    #         "dask_data": da.from_array(tpcz_stack),
-    #         "sizes":sizes,
-    #         "pixel_size_um":.3
-    #     }
-    # )
     assert len(v.layers) == 3
 
     ss = SubStack(v)

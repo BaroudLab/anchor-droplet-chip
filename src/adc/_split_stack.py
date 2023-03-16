@@ -29,6 +29,11 @@ from tifffile import imwrite
 
 from ._sub_stack import SubStack
 
+SPLIT_OUT_CHOICES = ("files", "layers")
+MAX_SPLIT_SIZE = 50
+PIXEL_SIZE_PROPERTY_NAME = "pixel_size_um"
+SIZES_PROPERTY_NAME = "sizes"
+
 
 class SplitAlong(QWidget):
     def __init__(self, napari_viewer: napari.Viewer) -> None:
@@ -45,8 +50,14 @@ class SplitAlong(QWidget):
         self.axis_selector = RadioButtons(
             label="Choose axis", orientation="horizontal", choices=()
         )
+        self.split_selector = RadioButtons(
+            label="target", orientation="horizontal", choices=SPLIT_OUT_CHOICES
+        )
+        self.split_selector.value = SPLIT_OUT_CHOICES[0]
+
         self.split_btn = PushButton(text="Split it!")
         self.split_btn.clicked.connect(self.split_data)
+
         self.save_btn = PushButton(text="Save tifs!")
         self.save_btn.clicked.connect(self.start_export)
 
@@ -54,6 +65,7 @@ class SplitAlong(QWidget):
             widgets=[
                 self.data_widget,
                 self.axis_selector,
+                self.split_selector,
                 self.split_btn,
                 self.path_widget,
                 self.saving_table,
@@ -151,8 +163,15 @@ class SplitAlong(QWidget):
         axis_sel = self.axis_selector.current_choice
         letter, size = axis_sel.split(":")
         self.total = int(size)
-        axis = self.axis_selector.choices.index(axis_sel)
-        self.meta = self.selected_layer.metadata
+        axis = list(self.sizes).index(letter)
+        if self.split_selector.value == SPLIT_OUT_CHOICES[1]:  # layers
+            self.viewer.add_image(
+                self.dask_data,
+                channel_axis=axis,
+                name=self.data_widget.current_choice,
+                metadata=self.meta,
+            )
+            return
         self.data_list = [
             slice_from_axis(array=self.dask_data, axis=axis, element=i)
             for i in range(self.total)
@@ -193,19 +212,21 @@ class SplitAlong(QWidget):
 
             return
 
+        self.meta = self.selected_layer.metadata.copy()
         try:
-            self.dask_data = self.selected_layer.metadata["dask_data"]
+            self.dask_data = self.meta["dask_data"]
             logger.debug(f"Found dask_data in layer metadata {self.dask_data}")
         except KeyError:
             logger.debug(
                 f"No dask_data in layer metadata {self.selected_layer.metadata}"
             )
             self.dask_data = da.asarray(self.selected_layer.data)
+            self.meta["dask_data"] = self.dask_data
             logger.debug(
                 f"created dask_array from layer data {self.dask_data}"
             )
         try:
-            self.sizes = self.selected_layer.metadata["sizes"]
+            self.sizes = self.meta[SIZES_PROPERTY_NAME]
             logger.debug(f"set sizes {self.sizes}")
 
         except KeyError:
@@ -216,29 +237,31 @@ class SplitAlong(QWidget):
                 f"dim-{i}": s
                 for i, s in enumerate(self.selected_layer.data.shape)
             }
-            show_warning(f"No sizes found in metadata")
-            logger.debug(f"set sizes {self.sizes}")
+            self.meta[SIZES_PROPERTY_NAME] = self.sizes
+            logger.debug(f"No sizes in metadata, generate sizes {self.sizes}")
         logger.debug("init_meta")
 
         try:
             self.path = self.selected_layer.metadata["path"]
             logger.debug(f"set path {self.path}")
         except KeyError:
-            self.path = None
-            logger.debug(f"set path to None")
-            show_warning(f"No path found in metadata")
+            self.path = self.selected_layer.source.path
+            logger.debug(f"set path to {self.path} from layer source")
 
         try:
-            self.pixel_size_um = self.selected_layer.metadata["pixel_size_um"]
+            self.pixel_size_um = self.meta[PIXEL_SIZE_PROPERTY_NAME]
             logger.debug(f"set pixel_size_um {self.pixel_size_um}")
         except KeyError:
             self.pixel_size_um = None
+            self.meta[PIXEL_SIZE_PROPERTY_NAME] = self.pixel_size_um
             logger.debug(f"set pixel_size_um to None")
-            show_warning(f"No pixel_size_um found in metadata")
 
         self.axis_selector.choices = list(
-            f"{ax}:{size}" for ax, size in list(self.sizes.items())[:-2]
+            f"{ax}:{size}"
+            for ax, size in list(self.sizes.items())[:]
+            if size < MAX_SPLIT_SIZE
         )
+
         logger.debug(f"update choices with {self.axis_selector.choices}")
         self.save_btn.clicked.disconnect()
         self.save_btn.clicked.connect(self.start_export)
