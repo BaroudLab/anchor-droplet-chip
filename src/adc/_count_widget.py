@@ -22,6 +22,7 @@ COUNTS_LAYER_PROPS = dict(
     face_color="#ffffff00",
     edge_color="#ff007f00",
 )
+COUNTS_JSON_SUFFIX = ".counts.json"
 
 DETECTION_LAYER_PROPS = dict(
     name="Detections",
@@ -29,6 +30,7 @@ DETECTION_LAYER_PROPS = dict(
     face_color="#ffffff00",
     edge_color="#ff007f88",
 )
+DETECTION_CSV_SUFFIX = ".detections.csv"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -129,25 +131,31 @@ class CountCells(QWidget):
         )
         try:
             path = selected_layer.source.path
-            detections_layer.save(ppp := os.path.join(path, ".detections.csv"))
-            with open(pppc := os.path.join(path, ".counts.json"), "w") as fp:
+            detections_layer.save(
+                ppp := os.path.join(path, DETECTION_CSV_SUFFIX)
+            )
+            with open(
+                pppc := os.path.join(path, COUNTS_JSON_SUFFIX), "w"
+            ) as fp:
                 json.dump(n_peaks_per_well, fp, indent=2)
         except Exception as e:
             logger.debug(f"Unable to save detections inside the zarr: {e}")
             logger.debug(f"Saving in a separate file")
             detections_layer.save(
-                ppp := os.path.join(path + ".detections.csv")
+                ppp := os.path.join(path + DETECTION_CSV_SUFFIX)
             )
         logger.info(f"Saving detections into {ppp}")
 
         try:
-            with open(ppp := os.path.join(path, ".counts.json"), "w") as fp:
+            with open(
+                ppp := os.path.join(path, COUNTS_JSON_SUFFIX), "w"
+            ) as fp:
                 json.dump(n_peaks_per_well, fp, indent=2)
         except Exception as e:
             logger.debug(f"Unable to save counts inside the zarr: {e}")
             logger.debug(f"Saving in a separate file")
 
-            with open(ppp := path + ".counts.json", "w") as fp:
+            with open(ppp := path + COUNTS_JSON_SUFFIX, "w") as fp:
                 json.dump(n_peaks_per_well, fp, indent=2)
         logger.info(f"Saving counts into {ppp}")
 

@@ -6,7 +6,13 @@ import nd2
 import pandas as pd
 import tifffile as tf
 
-from ._align_widget import DROPLETS_LAYER_NAME
+from ._align_widget import DROPLETS_CSV_SUFFIX, DROPLETS_LAYER_PROPS
+from ._count_widget import (
+    COUNTS_JSON_SUFFIX,
+    COUNTS_LAYER_PROPS,
+    DETECTION_CSV_SUFFIX,
+    DETECTION_LAYER_PROPS,
+)
 
 
 def napari_get_reader(path):
@@ -45,17 +51,12 @@ def napari_get_reader(path):
     return None
 
 
-def read_csv(path):
+def read_csv(path, props=DROPLETS_LAYER_PROPS):
     data = pd.read_csv(path, index_col=0)
     return [
         (
             data.values,
-            dict(
-                name=DROPLETS_LAYER_NAME,
-                size=300,
-                face_color="#00000000",
-                edge_color="#00880088",
-            ),
+            props,
             "points",
         )
     ]
@@ -78,17 +79,47 @@ def read_tif(path):
     except (ValueError, KeyError):
         channel_axis = None
 
-    return [
+    try:
+        ranges = data.imagej_metadata["Ranges"]
+        contrast_limits = [
+            [ranges[2 * i], ranges[2 * i + 1]] for i in range(len(ranges) // 2)
+        ]
+    except (ValueError, KeyError):
+        contrast_limits = None
+
+    out = [
         (
             arr,
             {
                 "channel_axis": channel_axis,
                 "metadata": {"path": path},
                 "colormap": colormap,
+                "contrast_limits": contrast_limits,
             },
             "image",
         )
     ]
+
+    if os.path.exists(ppp := path + DETECTION_CSV_SUFFIX):
+        detections = read_csv(ppp, props=DETECTION_LAYER_PROPS)[0]
+        out.append(detections)
+
+    if os.path.exists(ppp := path + DROPLETS_CSV_SUFFIX):
+        droplets = read_csv(ppp, props=DROPLETS_LAYER_PROPS)[0]
+        out.append(droplets)
+
+    if os.path.exists(ppp := path + COUNTS_JSON_SUFFIX):
+        with open(ppp) as f:
+            counts = read_json(f)
+        out.append(
+            (droplets[0], {"text": counts, **COUNTS_LAYER_PROPS}, "points")
+        )
+
+    return out
+
+
+def read_json(path):
+    return json.load(path)
 
 
 def read_zarr(path):
@@ -145,19 +176,13 @@ def read_zarr(path):
         )
     ]
 
-    if os.path.exists(det_path := os.path.join(path, ".detections.csv")):
+    if os.path.exists(det_path := os.path.join(path, DETECTION_CSV_SUFFIX)):
         try:
             table = pd.read_csv(det_path, index_col=0)
             output.append(
                 (
                     table[["axis-0", "axis-1", "axis-2"]].values,
-                    {
-                        "name": "detections",
-                        "face_color": "#ffffff00",
-                        "edge_color": "#ff007f88",
-                        "size": 20,
-                        "metadata": {"path": det_path},
-                    },
+                    {"metadata": {"path": det_path}, **DETECTION_LAYER_PROPS},
                     "points",
                 )
             )
@@ -166,11 +191,11 @@ def read_zarr(path):
     else:
         print(f"{det_path} doesn't exists")
 
-    if os.path.exists(det_path := os.path.join(path, ".droplets.csv")):
+    if os.path.exists(det_path := os.path.join(path, DROPLETS_CSV_SUFFIX)):
         try:
             table = pd.read_csv(det_path, index_col=0)
             if os.path.exists(
-                count_path := os.path.join(path, ".counts.json")
+                count_path := os.path.join(path, COUNTS_JSON_SUFFIX)
             ):
                 with open(count_path) as fp:
                     counts = json.load(fp)
@@ -180,12 +205,9 @@ def read_zarr(path):
                 (
                     table[["axis-0", "axis-1", "axis-2"]].values,
                     {
-                        "name": "droplets",
-                        "face_color": "#ffffff00",
-                        "edge_color": "#55aa0088",
-                        "size": 300,
                         "metadata": {"path": det_path},
                         "text": counts,
+                        **COUNTS_LAYER_PROPS,
                     },
                     "points",
                 )

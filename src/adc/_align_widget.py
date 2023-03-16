@@ -16,7 +16,13 @@ from adc import _sample_data, align
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-DROPLETS_LAYER_NAME = "Droplets"
+DROPLETS_LAYER_PROPS = dict(
+    name="Droplets",
+    size=300,
+    face_color="#00000000",
+    edge_color="#00880088",
+)
+DROPLETS_CSV_SUFFIX = ".droplets.csv"
 
 
 class DetectWells(QWidget):
@@ -113,11 +119,13 @@ class DetectWells(QWidget):
 
         try:
             path = data_layer.source.path
-            droplets_layer.save(ppp := os.path.join(path, ".droplets.csv"))
+            droplets_layer.save(ppp := os.path.join(path, DROPLETS_CSV_SUFFIX))
         except Exception as e:
             logger.debug(f"Unable to save detection inside the zarr: {e}")
             logger.debug(f"Saving in a separate file")
-            droplets_layer.save(ppp := os.path.join(path + ".droplets.csv"))
+            droplets_layer.save(
+                ppp := os.path.join(path + DROPLETS_CSV_SUFFIX)
+            )
         logger.info(f"Saving detections into {ppp}")
 
     def reset_choices(self, event=None):
@@ -127,13 +135,7 @@ class DetectWells(QWidget):
 
 
 def show_droplet_layer(viewer, data):
-    return viewer.add_points(
-        data,
-        name=DROPLETS_LAYER_NAME,
-        size=300,
-        face_color="#00000000",
-        edge_color="#88000088",
-    )
+    return viewer.add_points(data, **DROPLETS_LAYER_PROPS)
 
 
 def add_new_dim(centers, value):
