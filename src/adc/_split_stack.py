@@ -114,32 +114,33 @@ class SplitAlong(QWidget):
                 logger.warning("Manual stop!")
                 return "stopped"
             if os.path.exists(path):
-                logger.info(f"File exists {path}")
+                logger.info(f"File {i} exists {path}")
+                self.saving_table.data[i] = [name, shape, path, "Exists!"]
                 yield i, self.total, path, self.progress
-
-            logger.info(f"Saving {name} into {path}")
-            try:
-                data = self.data_list[i].compute()
-                meta = self.meta.copy()
-                meta["spacing"] = (px_size := meta["pixel_size_um"])
-                meta["unit"] = "um"
-                data_formatted_imagej = (
-                    np.expand_dims(data, axis=1)
-                    if "Z" not in meta["sizes"] and len(data.shape) > 3
-                    else data
-                )
-                imwrite(
-                    path,
-                    data_formatted_imagej,
-                    imagej=True,
-                    resolution=(1 / px_size, 1 / px_size),
-                    metadata=meta,
-                )
-                self.saving_table.data[i] = [name, data.shape, path, "Saved!"]
-                yield i, self.total, path, self.progress
-            except Exception as e:
-                logger.error(f"Failed saving {name} into {path}: {e}")
-                return False
+            else:
+                logger.info(f"Saving {name} into {path}")
+                try:
+                    data = self.data_list[i].compute()
+                    meta = self.meta.copy()
+                    meta["spacing"] = (px_size := meta["pixel_size_um"])
+                    meta["unit"] = "um"
+                    data_formatted_imagej = (
+                        np.expand_dims(data, axis=1)
+                        if "Z" not in meta["sizes"] and len(data.shape) > 3
+                        else data
+                    )
+                    imwrite(
+                        path,
+                        data_formatted_imagej,
+                        imagej=True,
+                        resolution=(1 / px_size, 1 / px_size),
+                        metadata=meta,
+                    )
+                    self.saving_table.data[i] = [name, data.shape, path, "Saved!"]
+                    yield i, self.total, path, self.progress
+                except Exception as e:
+                    logger.error(f"Failed saving {name} into {path}: {e}")
+                    return False
 
         self.save_btn.clicked.disconnect()
         self.save_btn.clicked.connect(self.start_export)
