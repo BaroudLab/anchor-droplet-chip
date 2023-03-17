@@ -55,7 +55,7 @@ jobs:
       - name: Test with pytest
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: python -m pytest --cov --cov-append --cov-report=term-missing
+          run: pytest -v --color=yes --cov=anchor-droplet-chip --cov-report=xml
         env:
           PLATFORM: ${{ matrix.platform }}
 
