@@ -54,7 +54,7 @@ jobs:
       - name: Test with tox
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: tox
+          run: tox -e py${{ matrix.python-version }}
         env:
           PLATFORM: ${{ matrix.platform }}
 
