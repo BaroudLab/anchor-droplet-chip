@@ -52,10 +52,10 @@ jobs:
           python -m pip install .
 
       # this runs the platform-specific tests declared in tox.ini
-      - name: Test with pytest
+      - name: Test with tox
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest -v --color=yes --cov=anchor-droplet-chip --cov-report=xml
+          run: tox
         env:
           PLATFORM: ${{ matrix.platform }}
 
