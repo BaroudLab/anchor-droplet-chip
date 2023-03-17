@@ -8,11 +8,14 @@ import napari
 import numpy as np
 from pytest import fixture
 from tifffile import imread
+import logging
 
 from adc._projection_stack import ProjectAlong
 from adc._split_stack import SplitAlong
 from adc._sub_stack import SubStack
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 @fixture
 def test_stack():
@@ -75,8 +78,10 @@ def test_substack(test_stack):
     )
     try:
         st.start_export()
-        time.sleep(12)
-        st.worker.await_workers(msecs=5000)
+        start = time.time()
+        while len(glob(os.path.join(testdir, "*.tif"))) < 10 and time.time() - start < 20:
+            time.sleep(1)
+            logger.debug("waiting for tifs")
         assert len(flist := glob(os.path.join(testdir, "*.tif"))) == 10
         assert imread(flist[0]).shape == (30, 3, 256, 256)
     except Exception as e:
