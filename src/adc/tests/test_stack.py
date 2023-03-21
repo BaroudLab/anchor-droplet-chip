@@ -33,8 +33,8 @@ def test_stack():
     }
 
 
-def test_substack(test_stack):
-    v = napari.Viewer()
+def test_substack(make_napari_viewer, test_stack):
+    v = make_napari_viewer()
     v.add_image(**test_stack)
     assert len(v.layers) == 3
 
