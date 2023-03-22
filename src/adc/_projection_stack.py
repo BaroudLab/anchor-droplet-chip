@@ -14,6 +14,8 @@ from napari.layers import Image
 from napari.utils.notifications import show_warning
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
+from ._sub_stack import SubStack
+
 logging.config.fileConfig("logging.conf")
 
 logger = logging.getLogger(__name__)
@@ -59,7 +61,7 @@ class ProjectAlong(QWidget):
         letter, size = axis_sel.split(":")
         self.total = int(size)
         axis = self.axis_selector.choices.index(axis_sel)
-        self.meta = self.dataset.metadata.copy()
+        self.meta = self.selected_layer.metadata.copy()
 
         selected_op = self.op_widget.current_choice
 
@@ -76,20 +78,24 @@ class ProjectAlong(QWidget):
         except ValueError:
             channel_axis = None
         self.meta["dask_data"] = self.projection
-        ddata = self.projection 
-        
+        ddata = self.projection
+
         self.viewer.add_image(
-            ddata if max(ddata.shape) < 4000 else [ddata[...,::2**i,::2**i] for i in range(4)],
+            ddata
+            if max(ddata.shape) < 4000
+            else [ddata[..., :: 2**i, :: 2**i] for i in range(4)],
             channel_axis=channel_axis,
-            name=self.dataset.name + "_" + selected_op,
+            name=self.selected_layer.name + "_" + selected_op,
             metadata=self.meta,
         )
 
     def init_data(self):
         try:
-            self.dataset = self.viewer.layers[self.data_widget.current_choice]
+            self.selected_layer = self.viewer.layers[
+                self.data_widget.current_choice
+            ]
         except KeyError:
-            logger.debug("no dataset")
+            logger.debug("no data in selected_layer")
             self.sizes = None
             self.path = None
             logger.debug("set sizes and path to None")
@@ -97,33 +103,34 @@ class ProjectAlong(QWidget):
             return
 
         try:
-            self.dask_data = self.dataset.metadata["dask_data"]
+            self.dask_data = self.selected_layer.metadata["dask_data"]
             logger.debug(f"Found dask_data in layer metadata {self.dask_data}")
         except KeyError:
             logger.debug(
-                f"No dask_data in layer metadata {self.dataset.metadata}"
+                f"No dask_data in layer metadata {self.selected_layer.metadata}"
             )
-            self.dask_data = da.asarray(self.dataset.data)
+            self.dask_data = da.asarray(self.selected_layer.data)
             logger.debug(
                 f"created dask_array from layer data {self.dask_data}"
             )
         try:
-            self.sizes = self.dataset.metadata["sizes"]
+            self.sizes = self.selected_layer.metadata["sizes"]
             logger.debug(f"set sizes {self.sizes}")
 
         except KeyError:
             logger.debug(
-                f"generating sizes from shape {self.dataset.data.shape}"
+                f"generating sizes from shape {self.selected_layer.data.shape}"
             )
             self.sizes = {
-                f"dim-{i}": s for i, s in enumerate(self.dataset.data.shape)
+                f"dim-{i}": s
+                for i, s in enumerate(self.selected_layer.data.shape)
             }
             show_warning(f"No sizes found in metadata")
             logger.debug(f"set sizes {self.sizes}")
         logger.debug("init_meta")
 
         try:
-            self.path = self.dataset.metadata["path"]
+            self.path = self.selected_layer.metadata["path"]
             logger.debug(f"set path {self.path}")
         except KeyError:
             self.path = None
@@ -131,7 +138,7 @@ class ProjectAlong(QWidget):
             show_warning(f"No path found in metadata")
 
         try:
-            self.pixel_size_um = self.dataset.metadata["pixel_size_um"]
+            self.pixel_size_um = self.selected_layer.metadata["pixel_size_um"]
             logger.debug(f"set pixel_size_um {self.pixel_size_um}")
         except KeyError:
             self.pixel_size_um = None
@@ -142,6 +149,10 @@ class ProjectAlong(QWidget):
             f"{ax}:{size}" for ax, size in list(self.sizes.items())[:-2]
         )
         logger.debug(f"update choices with {self.axis_selector.choices}")
+
+        SubStack.update_axis_labels(
+            self.sizes, self.selected_layer.data, self.viewer.dims
+        )
 
     def reset_choices(self):
         self.data_widget.reset_choices()
