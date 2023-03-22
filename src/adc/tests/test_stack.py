@@ -93,8 +93,11 @@ def test_substack(make_napari_viewer, test_stack):
 def test_project(make_napari_viewer, test_stack):
     v = make_napari_viewer()
     v.add_image(**test_stack)
+
     m = v.layers[0].metadata.copy()
     p = ProjectAlong(v)
+    assert v.dims.axis_labels == tuple("TPZYX")  # C used for as channel axis
+
     p.axis_selector.value = "Z:15"
     p.make_projection()
     assert v.layers[0].metadata == m
