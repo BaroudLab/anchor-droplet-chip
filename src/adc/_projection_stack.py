@@ -13,6 +13,7 @@ from magicgui.widgets import (
 from napari.layers import Image
 from napari.utils.notifications import show_warning
 from qtpy.QtWidgets import QVBoxLayout, QWidget
+from ._sub_stack import SubStack
 
 logging.config.fileConfig("logging.conf")
 
@@ -143,6 +144,9 @@ class ProjectAlong(QWidget):
         )
         logger.debug(f"update choices with {self.axis_selector.choices}")
 
+        SubStack.update_axis_labels(
+            self.sizes, self.selected_layer.data, self.viewer.dims
+        )
     def reset_choices(self):
         self.data_widget.reset_choices()
         logger.debug(f"reset choises from input {self.data_widget.choices}")
