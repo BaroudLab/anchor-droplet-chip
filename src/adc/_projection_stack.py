@@ -59,7 +59,7 @@ class ProjectAlong(QWidget):
         letter, size = axis_sel.split(":")
         self.total = int(size)
         axis = self.axis_selector.choices.index(axis_sel)
-        self.meta = self.dataset.metadata
+        self.meta = self.dataset.metadata.copy()
 
         selected_op = self.op_widget.current_choice
 

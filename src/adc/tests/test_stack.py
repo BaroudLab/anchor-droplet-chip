@@ -8,11 +8,15 @@ import napari
 import numpy as np
 from pytest import fixture
 from tifffile import imread
+import logging
 
 from adc._projection_stack import ProjectAlong
 from adc._split_stack import SplitAlong
 from adc._sub_stack import SubStack
+from adc._reader import napari_get_reader
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 @fixture
 def test_stack():
@@ -29,8 +33,8 @@ def test_stack():
     }
 
 
-def test_substack(test_stack):
-    v = napari.Viewer()
+def test_substack(make_napari_viewer, test_stack):
+    v = make_napari_viewer()
     v.add_image(**test_stack)
     assert len(v.layers) == 3
 
@@ -75,11 +79,22 @@ def test_substack(test_stack):
     )
     try:
         st.start_export()
-        time.sleep(12)
-        st.worker.await_workers(msecs=5000)
+        start = time.time()
+        while len(glob(os.path.join(testdir, "*.tif"))) < 10 and time.time() - start < 20:
+            time.sleep(1)
+            logger.debug("waiting for tifs")
         assert len(flist := glob(os.path.join(testdir, "*.tif"))) == 10
         assert imread(flist[0]).shape == (30, 3, 256, 256)
     except Exception as e:
         raise e
     finally:
         shutil.rmtree(testdir)
+
+def test_project(make_napari_viewer, test_stack):
+    v = make_napari_viewer()
+    v.add_image(**test_stack)
+    m = v.layers[0].metadata.copy()
+    p = ProjectAlong(v)
+    p.axis_selector.value = "Z:15"
+    p.make_projection()
+    assert v.layers[0].metadata == m
