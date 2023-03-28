@@ -91,8 +91,11 @@ class SplitAlong(QWidget):
     def update_progress(data):
         i, total, path, pr = data
         logger.info(f"{i+1}/{total} saved to {path}")
-        pr.updateProgress(i + 1)
-        pr.updateStatus(f"Exporting {i+1}/{total}")
+        try:
+            pr.updateProgress(i + 1)
+            pr.updateStatus(f"Exporting {i+1}/{total}")
+        except RuntimeError as e:
+            logger.warning(f"Unable to update progress {e}")
 
     def start_export(self):
         logger.info("Start export")
