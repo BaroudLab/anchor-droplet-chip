@@ -52,11 +52,9 @@ class CountCells(QWidget):
     def _update_detections(self):
         show_info("Loading the data")
         with progress(desc="Loading data") as prb:
-            fluo = (
-                self.viewer.layers[self.select_TRITC.current_choice]
-                .data[0]  # maximum resilution from the piramide
-                .compute()
-            )  # max resolution
+            fluo = self.viewer.layers[self.select_TRITC.current_choice].data[
+                0
+            ]  # maximum resilution from the piramide  # max resolution
             prb.close()
         centers = (
             centers_layer := self.viewer.layers[

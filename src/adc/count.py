@@ -3,6 +3,7 @@ import pathlib
 from functools import partial
 from importlib.metadata import PackageNotFoundError, version
 
+import dask.array as da
 import fire
 import matplotlib.pyplot as plt
 import numpy as np
@@ -53,7 +54,6 @@ def get_cell_numbers(
     props = regionprops(labels)
 
     def get_raw_peaks(i):
-
         if bf is None:
             return get_peaks(
                 multiwell_image[props[i].slice],
@@ -149,6 +149,8 @@ def get_peaks(
     title="",
     bf_crop=None,
 ):
+    if isinstance(crop2d, da.Array):
+        crop2d = crop2d.compute()
     image_max = gdif(crop2d, dif_gauss_sigma)
     peaks = peak_local_max(
         image_max, min_distance=min_distance, threshold_abs=threshold_abs
@@ -208,7 +210,6 @@ def main(
     poisson=True,
     **kwargs,
 ):
-
     """
     Reads the data and saves the counting table
     Parameters:
