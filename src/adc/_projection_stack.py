@@ -21,7 +21,7 @@ logging.config.fileConfig("logging.conf")
 logger = logging.getLogger(__name__)
 
 
-OPS = ["max", "mean"]
+OPS = ["max", "mean", "min"]
 
 
 class ProjectAlong(QWidget):
@@ -85,7 +85,7 @@ class ProjectAlong(QWidget):
             if max(ddata.shape) < 4000
             else [ddata[..., :: 2**i, :: 2**i] for i in range(4)],
             channel_axis=channel_axis,
-            name=self.selected_layer.name + "_" + selected_op,
+            name=self.selected_layer.name + "_" + selected_op + letter,
             metadata=self.meta,
         )
 
