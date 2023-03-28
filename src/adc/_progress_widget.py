@@ -10,10 +10,18 @@ from qtpy.QtWidgets import (
 
 
 class ProgressBarWidget(QWidget):
-    def __init__(self, napari_viewer: napari.Viewer):
-        super().__init__()
-        self.initUI()
+    def __init__(
+        self,
+        napari_viewer: napari.Viewer,
+        total: int = 10,
+        stop=lambda: print("STOP"),
+        parent=None,
+    ):
+        super().__init__(parent=parent)
         self.viewer = napari_viewer
+        self.total = total
+        self.stop = stop
+        self.initUI()
 
     def initUI(self):
         # Set widget properties
@@ -26,7 +34,7 @@ class ProgressBarWidget(QWidget):
         self.stopButton = QPushButton("Stop", self)
 
         # Set progress bar properties
-        self.progressBar.setRange(0, 100)
+        self.progressBar.setRange(0, self.total)
         self.progressBar.setValue(0)
 
         # Create vertical layout
@@ -45,7 +53,5 @@ class ProgressBarWidget(QWidget):
         self.titleLabel.setText(f"Progress: {status}")
 
     def stop(self):
-        self.thread.stop()
-
-    def setThread(self, thread):
-        self.thread = thread
+        self.stop()
+        self.stopButton.setVisible(False)
