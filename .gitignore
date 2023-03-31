@@ -134,3 +134,4 @@ src/adc/_version.py
 *.png
 .snakemake*
 data*
+*.zarr
