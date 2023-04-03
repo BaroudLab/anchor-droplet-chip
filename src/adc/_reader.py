@@ -5,6 +5,15 @@ import os
 import dask.array as da
 import nd2
 import pandas as pd
+import tifffile as tf
+
+from ._align_widget import DROPLETS_CSV_SUFFIX, DROPLETS_LAYER_PROPS
+from ._count_widget import (
+    COUNTS_JSON_SUFFIX,
+    COUNTS_LAYER_PROPS,
+    DETECTION_CSV_SUFFIX,
+    DETECTION_LAYER_PROPS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +45,92 @@ def napari_get_reader(path):
     if path.endswith(".zarr"):
         return read_zarr
 
+    if path.endswith(".tif"):
+        return read_tif
+
+    if path.endswith(".csv"):
+        return read_csv
+
     return None
+
+
+def read_csv(path, props=DROPLETS_LAYER_PROPS):
+    data = pd.read_csv(path, index_col=0)
+    return [
+        (
+            data.values,
+            props,
+            "points",
+        )
+    ]
+
+
+def read_tif(path):
+    data = tf.TiffFile(path)
+    z = data.aszarr()
+    d = da.from_zarr(z)
+    if max(d.shape) > 4000:
+        arr = [d[..., :: 2**i, :: 2**i] for i in range(4)]
+        arr_shape = d.shape
+    else:
+        arr = d
+    arr_shape = d.shape
+
+    colormap = (
+        ["gray", "yellow"]
+        if all([a in path for a in ["BF", "TRITC"]])
+        else None
+    )
+    try:
+        channel_axis = (
+            arr_shape.index(data.imagej_metadata["channels"])
+            if data.is_imagej
+            else None
+        )
+    except (ValueError, KeyError):
+        channel_axis = None
+
+    try:
+        ranges = data.imagej_metadata["Ranges"]
+        contrast_limits = [
+            [ranges[2 * i], ranges[2 * i + 1]] for i in range(len(ranges) // 2)
+        ]
+    except (ValueError, KeyError):
+        contrast_limits = None
+
+    out = [
+        (
+            arr,
+            {
+                "channel_axis": channel_axis,
+                "metadata": {"path": path},
+                "colormap": colormap,
+                "contrast_limits": contrast_limits,
+            },
+            "image",
+        )
+    ]
+
+    if os.path.exists(ppp := path + DETECTION_CSV_SUFFIX):
+        detections = read_csv(ppp, props=DETECTION_LAYER_PROPS)[0]
+        out.append(detections)
+
+    if os.path.exists(ppp := path + DROPLETS_CSV_SUFFIX):
+        droplets = read_csv(ppp, props=DROPLETS_LAYER_PROPS)[0]
+        out.append(droplets)
+
+    if os.path.exists(ppp := path + COUNTS_JSON_SUFFIX):
+        with open(ppp) as f:
+            counts = read_json(f)
+        out.append(
+            (droplets[0], {"text": counts, **COUNTS_LAYER_PROPS}, "points")
+        )
+
+    return out
+
+
+def read_json(path):
+    return json.load(path)
 
 
 def read_zarr(path):
@@ -50,6 +144,7 @@ def read_zarr(path):
         ]
         datasets = [da.from_zarr(p) for p in dataset_paths]
     except Exception as e:
+
         logger.error(f"Error opening .zattr: {e}")
         datasets = da.from_zarr(path)
 
@@ -112,19 +207,13 @@ def read_zarr(path):
         )
     ]
 
-    if os.path.exists(det_path := os.path.join(path, ".detections.csv")):
+    if os.path.exists(det_path := os.path.join(path, DETECTION_CSV_SUFFIX)):
         try:
             table = pd.read_csv(det_path, index_col=0)
             output.append(
                 (
                     table[["axis-0", "axis-1", "axis-2"]].values,
-                    {
-                        "name": "detections",
-                        "face_color": "#ffffff00",
-                        "edge_color": "#ff007f88",
-                        "size": 20,
-                        "metadata": {"path": det_path},
-                    },
+                    {"metadata": {"path": det_path}, **DETECTION_LAYER_PROPS},
                     "points",
                 )
             )
@@ -133,11 +222,11 @@ def read_zarr(path):
     else:
         print(f"{det_path} doesn't exists")
 
-    if os.path.exists(det_path := os.path.join(path, ".droplets.csv")):
+    if os.path.exists(det_path := os.path.join(path, DROPLETS_CSV_SUFFIX)):
         try:
             table = pd.read_csv(det_path, index_col=0)
             if os.path.exists(
-                count_path := os.path.join(path, ".counts.json")
+                count_path := os.path.join(path, COUNTS_JSON_SUFFIX)
             ):
                 with open(count_path) as fp:
                     counts = json.load(fp)
@@ -147,12 +236,9 @@ def read_zarr(path):
                 (
                     table[["axis-0", "axis-1", "axis-2"]].values,
                     {
-                        "name": "droplets",
-                        "face_color": "#ffffff00",
-                        "edge_color": "#55aa0088",
-                        "size": 300,
                         "metadata": {"path": det_path},
                         "text": counts,
+                        **COUNTS_LAYER_PROPS,
                     },
                     "points",
                 )

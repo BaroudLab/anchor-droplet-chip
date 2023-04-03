@@ -65,7 +65,7 @@ contributions:
   readers:
     - command: anchor-droplet-chip.get_reader
       accepts_directories: True
-      filename_patterns: ['*.npy', '*.nd2', '*.zarr']
+      filename_patterns: ['*.npy', '*.nd2', '*.zarr', "*.tif", "*.csv"]
 
   sample_data:
     - command: anchor-droplet-chip.make_template

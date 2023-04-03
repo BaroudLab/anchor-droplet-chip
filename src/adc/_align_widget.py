@@ -16,7 +16,13 @@ from adc import _sample_data, align
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-DROPLETS_LAYER_NAME = "Droplets"
+DROPLETS_LAYER_PROPS = dict(
+    name="Droplets",
+    size=300,
+    face_color="#00000000",
+    edge_color="#00880088",
+)
+DROPLETS_CSV_SUFFIX = ".droplets.csv"
 
 
 class DetectWells(QWidget):
@@ -85,8 +91,8 @@ class DetectWells(QWidget):
 
         if data.ndim == 2:
             data = (data,)
-        p = Pool(lll := len(data))
-        logger.info(f"Processing in parallel with {lll} cores")
+        p = Pool(cores := len(data))
+        logger.info(f"Processing in parallel with {cores} cores")
         try:
             centers16 = p.map(
                 partial(locate_wells, template=temp, ccenters=ccenters), data
@@ -95,13 +101,10 @@ class DetectWells(QWidget):
                 [add_new_dim(c * 8, i) for i, c in enumerate(centers16)]
             )
 
-            droplets_layer = self.viewer.add_points(
-                self.aligned_centers,
-                name=DROPLETS_LAYER_NAME,
-                size=300,
-                face_color="#00000000",
-                edge_color="#88000088",
+            droplets_layer = show_droplet_layer(
+                self.viewer, self.aligned_centers
             )
+
             self.viewer.layers[
                 self.select_centers.current_choice
             ].visible = False
@@ -116,16 +119,23 @@ class DetectWells(QWidget):
 
         try:
             path = data_layer.source.path
-            self.viewer.layers[DROPLETS_LAYER_NAME].save(
-                os.path.join(path, ".droplets.csv")
-            )
+            droplets_layer.save(ppp := os.path.join(path, DROPLETS_CSV_SUFFIX))
         except Exception as e:
-            logger.error(f"Saving detections failed: {e}")
+            logger.debug(f"Unable to save detection inside the zarr: {e}")
+            logger.debug(f"Saving in a separate file")
+            droplets_layer.save(
+                ppp := os.path.join(path + DROPLETS_CSV_SUFFIX)
+            )
+        logger.info(f"Saving detections into {ppp}")
 
     def reset_choices(self, event=None):
         self.select_image.reset_choices(event)
         self.select_template.reset_choices(event)
         self.select_centers.reset_choices(event)
+
+
+def show_droplet_layer(viewer, data):
+    return viewer.add_points(data, **DROPLETS_LAYER_PROPS)
 
 
 def add_new_dim(centers, value):
