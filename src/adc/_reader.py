@@ -2,7 +2,7 @@ import json
 import logging
 import os
 
-import dask
+import dask.array as da
 import nd2
 import pandas as pd
 
@@ -48,10 +48,10 @@ def read_zarr(path):
         dataset_paths = [
             os.path.join(path, d["path"]) for d in info["datasets"]
         ]
-        datasets = [dask.array.from_zarr(p) for p in dataset_paths]
+        datasets = [da.from_zarr(p) for p in dataset_paths]
     except Exception as e:
         logger.error(f"Error opening .zattr: {e}")
-        datasets = dask.array.from_zarr(path)
+        datasets = da.from_zarr(path)
 
     try:
         channel_axis = info["channel_axis"]
