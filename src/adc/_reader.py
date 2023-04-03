@@ -1,7 +1,7 @@
 import json
 import os
 
-import dask
+import dask.array as da
 import nd2
 import pandas as pd
 import tifffile as tf
@@ -64,7 +64,15 @@ def read_csv(path, props=DROPLETS_LAYER_PROPS):
 
 def read_tif(path):
     data = tf.TiffFile(path)
-    arr = data.asarray()
+    z = data.aszarr()
+    d = da.from_zarr(z)
+    if max(d.shape) > 4000:
+        arr = [d[..., :: 2**i, :: 2**i] for i in range(4)]
+        arr_shape = d.shape
+    else:
+        arr = d
+    arr_shape = d.shape
+
     colormap = (
         ["gray", "yellow"]
         if all([a in path for a in ["BF", "TRITC"]])
@@ -72,7 +80,7 @@ def read_tif(path):
     )
     try:
         channel_axis = (
-            arr.shape.index(data.imagej_metadata["channels"])
+            arr_shape.index(data.imagej_metadata["channels"])
             if data.is_imagej
             else None
         )
@@ -132,7 +140,7 @@ def read_zarr(path):
         raise e
 
     dataset_paths = [os.path.join(path, d["path"]) for d in info["datasets"]]
-    datasets = [dask.array.from_zarr(p) for p in dataset_paths]
+    datasets = [da.from_zarr(p) for p in dataset_paths]
 
     try:
         channel_axis = info["channel_axis"]
