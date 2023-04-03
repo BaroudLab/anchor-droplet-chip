@@ -14,7 +14,6 @@ from magicgui.widgets import (
     create_widget,
 )
 from napari.layers import Image
-from napari.utils import progress
 from napari.utils.notifications import show_error, show_info, show_warning
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
@@ -27,10 +26,11 @@ from napari.layers.utils.stack_utils import slice_from_axis
 from napari.qt.threading import thread_worker
 from tifffile import imwrite
 
+from ._progress_widget import ProgressBarWidget
 from ._sub_stack import SubStack
 
 SPLIT_OUT_CHOICES = ("files", "layers")
-MAX_SPLIT_SIZE = 50
+MAX_SPLIT_SIZE = 100
 PIXEL_SIZE_PROPERTY_NAME = "pixel_size_um"
 SIZES_PROPERTY_NAME = "sizes"
 
@@ -90,18 +90,30 @@ class SplitAlong(QWidget):
 
     def update_progress(data):
         i, total, path, pr = data
-        # show_info(f"{i+1}/{total} saved to {path}")
-        pr.update(1)
+        logger.info(f"{i+1}/{total} saved to {path}")
+        try:
+            pr.updateProgress(i + 1)
+            pr.updateStatus(f"Exporting {i+1}/{total}")
+        except RuntimeError as e:
+            logger.warning(f"Unable to update progress {e}")
 
     def start_export(self):
         logger.info("Start export")
 
-        self.progress = progress(total=len(self.data_list))
+        self.progress = ProgressBarWidget(
+            napari_viewer=self.viewer,
+            total=len(self.data_list),
+            stop=self.stop_export,
+            parent=self,
+        )
+        self.progress.updateStatus("Started export")
+        self.viewer.window.add_dock_widget(self.progress)
         self.worker = self.save_tifs()
 
     def stop_export(self):
         logger.info("Stop requested")
         self.stop = True
+        self.progress.updateStatus(f"Waiting for current step to finish")
 
     def abort():
         show_warning("Export aborted")
@@ -117,13 +129,14 @@ class SplitAlong(QWidget):
     )
     def save_tifs(self):
         data = self.saving_table.data.to_list().copy()
-        self.save_btn.label = "STOP"
-        self.save_btn.clicked.disconnect()
-        self.save_btn.clicked.connect(self.stop_export)
         self.stop = False
         for i, (name, shape, path, _) in enumerate(data):
             if self.stop:
                 logger.warning("Manual stop!")
+                self.progress.updateStatus(
+                    msg := f"Stopped exporting at {i+1}/{self.total}"
+                )
+                show_info(msg)
                 return "stopped"
             if os.path.exists(path):
                 logger.info(f"File {i} exists {path}")
@@ -148,15 +161,18 @@ class SplitAlong(QWidget):
                         resolution=(1 / px_size, 1 / px_size),
                         metadata=meta,
                     )
-                    self.saving_table.data[i] = [name, data.shape, path, "Saved!"]
+                    self.saving_table.data[i] = [
+                        name,
+                        data.shape,
+                        path,
+                        "Saved!",
+                    ]
                     yield i, self.total, path, self.progress
                 except Exception as e:
                     logger.error(f"Failed saving {name} into {path}: {e}")
                     return False
 
-        self.save_btn.clicked.disconnect()
-        self.save_btn.clicked.connect(self.start_export)
-        self.progress.close()
+        self.viewer.window.remove_dock_widget(self.progress)
 
     def split_data(self):
         logger.info(f"Splitting dask array {self.dask_data.shape}")
@@ -263,8 +279,6 @@ class SplitAlong(QWidget):
         )
 
         logger.debug(f"update choices with {self.axis_selector.choices}")
-        self.save_btn.clicked.disconnect()
-        self.save_btn.clicked.connect(self.start_export)
 
         SubStack.update_axis_labels(
             self.sizes, self.selected_layer.data, self.viewer.dims

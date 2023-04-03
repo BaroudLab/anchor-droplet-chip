@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 import dask.array as da
@@ -13,6 +14,8 @@ from ._count_widget import (
     DETECTION_CSV_SUFFIX,
     DETECTION_LAYER_PROPS,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def napari_get_reader(path):
@@ -136,29 +139,32 @@ def read_zarr(path):
     try:
         attrs = json.load(open(os.path.join(path, ".zattrs")))
         info = attrs["multiscales"]["multiscales"][0]
+        dataset_paths = [
+            os.path.join(path, d["path"]) for d in info["datasets"]
+        ]
+        datasets = [da.from_zarr(p) for p in dataset_paths]
     except Exception as e:
-        raise e
 
-    dataset_paths = [os.path.join(path, d["path"]) for d in info["datasets"]]
-    datasets = [da.from_zarr(p) for p in dataset_paths]
+        logger.error(f"Error opening .zattr: {e}")
+        datasets = da.from_zarr(path)
 
     try:
         channel_axis = info["channel_axis"]
         print(f"found channel axis {channel_axis}")
-    except KeyError:
-        channel_axis = None
-
     except Exception as e:
-        raise e
+        logger.debug(f"no info found {e}")
+        channel_axis = None
 
     try:
         contrast_limits = info["lut"]
-    except KeyError:
+    except Exception as e:
+        logger.debug("no info found")
         contrast_limits = None
 
     try:
         colormap = info["colormap"]
-    except KeyError:
+    except Exception as e:
+        logger.debug("no info found")
         colormap = None
 
     try:
@@ -169,6 +175,23 @@ def read_zarr(path):
     except Exception as e:
         print("name exception", e.args)
         name = os.path.basename(path)
+    meta = {"path": path}
+
+    try:
+        if "sizes" in info:
+            meta["sizes"] = info["sizes"]
+    except UnboundLocalError:
+        pass
+
+    try:
+        if not datasets[0].shape == tuple(meta["sizes"].values()):
+            logger.error(
+                f"dataset shape {datasets[0].shape} is not the same as size: {meta['sizes'].values()}"
+            )
+        else:
+            meta["dask_data"] = datasets[0]
+    except Exception as e:
+        logger.error(f"Error setting dask_data: {e}")
 
     output = [
         (
@@ -178,7 +201,7 @@ def read_zarr(path):
                 "colormap": colormap,
                 "contrast_limits": contrast_limits,
                 "name": name,
-                "metadata": {"path": path},
+                "metadata": meta,
             },
             "image",
         )
