@@ -17,11 +17,13 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 TEST_DIR_NAME = "test_split"
+T, P, C, Z, Y, X = (8, 10, 3, 15, 256, 256)
+MAX_WAIT_SEC = 20
 
 
 @fixture
 def test_stack():
-    sizes = {"T": 30, "P": 10, "C": 3, "Z": 15, "Y": 256, "X": 256}
+    sizes = {"T": T, "P": P, "C": C, "Z": Z, "Y": Y, "X": Y}
     tpcz_stack = np.zeros(tuple(sizes.values()), dtype="uint16")
     return {
         "data": tpcz_stack,
@@ -43,20 +45,20 @@ def test_substack(make_napari_viewer, test_stack):
     # v.window.add_dock_widget(ss)
     assert v.dims.axis_labels == tuple("TPZYX")  # C used for as channel axis
 
-    ss.slice_container[3].start.value = 5
-    ss.slice_container[3].stop.value = 10
+    ss.slice_container[3].start.value = 5  # z
+    ss.slice_container[3].stop.value = 10  # z
     ss.make_new_layer()
     assert len(v.layers) == 6
-    assert v.layers[3].data.shape == (30, 10, 5, 256, 256)
-    assert v.layers[3].metadata["dask_data"].shape == (30, 10, 3, 5, 256, 256)
+    assert v.layers[3].data.shape == (T, P, 5, Y, X)
+    assert v.layers[3].metadata["dask_data"].shape == (T, P, C, 5, Y, X)
 
     ps = ProjectAlong(v)
     # v.window.add_dock_widget(ps)
     ps.axis_selector.value = "Z:15"
     ps.make_projection()
     assert len(v.layers) == 9
-    assert v.layers[6].data.shape == (30, 10, 256, 256)
-    assert v.layers[6].metadata["dask_data"].shape == (30, 10, 3, 256, 256)
+    assert v.layers[6].data.shape == (T, P, Y, X)
+    assert v.layers[6].metadata["dask_data"].shape == (T, P, C, Y, X)
 
     for i in v.layers[:6]:
         v.layers.remove(i)
@@ -65,10 +67,10 @@ def test_substack(make_napari_viewer, test_stack):
     st = SplitAlong(v)
     # v.window.add_dock_widget(st)
 
-    st.axis_selector.value = "P:10"
+    st.axis_selector.value = f"P:{P}"
     st.split_data()
-    assert len(st.data_list) == 10
-    assert st.data_list[0].shape == (30, 3, 256, 256)
+    assert len(st.data_list) == P
+    assert st.data_list[0].shape == (T, C, Y, X)
     try:
         os.mkdir(TEST_DIR_NAME)
     except FileExistsError:
@@ -82,13 +84,13 @@ def test_substack(make_napari_viewer, test_stack):
         st.start_export()
         start = time.time()
         while (
-            len(glob(os.path.join(testdir, "*.tif"))) < 10
-            and time.time() - start < 20
+            len(glob(os.path.join(testdir, "*.tif"))) < P
+            and time.time() - start < MAX_WAIT_SEC
         ):
             time.sleep(1)
             logger.debug("waiting for tifs")
-        assert len(flist := glob(os.path.join(testdir, "*.tif"))) == 10
-        assert imread(flist[0]).shape == (30, 3, 256, 256)
+        assert len(flist := glob(os.path.join(testdir, "*.tif"))) == P
+        assert imread(flist[0]).shape == (T, C, Y, X)
     except Exception as e:
         raise e
     finally:
@@ -103,6 +105,6 @@ def test_projection(make_napari_viewer, test_stack):
     p = ProjectAlong(v)
     assert v.dims.axis_labels == tuple("TPZYX")  # C used for as channel axis
 
-    p.axis_selector.value = "Z:15"
+    p.axis_selector.value = f"Z:{Z}"
     p.make_projection()
     assert v.layers[0].metadata == m
