@@ -1,22 +1,23 @@
+import logging
 import os
 import shutil
 import time
 from glob import glob
 
 import dask.array as da
-import napari
 import numpy as np
 from pytest import fixture
 from tifffile import imread
-import logging
 
 from adc._projection_stack import ProjectAlong
 from adc._split_stack import SplitAlong
 from adc._sub_stack import SubStack
-from adc._reader import napari_get_reader
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+TEST_DIR_NAME = "test_split"
+
 
 @fixture
 def test_stack():
@@ -69,18 +70,21 @@ def test_substack(make_napari_viewer, test_stack):
     assert len(st.data_list) == 10
     assert st.data_list[0].shape == (30, 3, 256, 256)
     try:
-        os.mkdir(testdir_name := "test_split")
+        os.mkdir(TEST_DIR_NAME)
     except FileExistsError:
-        shutil.rmtree(testdir_name)
-        os.mkdir(testdir_name := "test_split")
+        shutil.rmtree(TEST_DIR_NAME)
+        os.mkdir(TEST_DIR_NAME)
 
     st.path_widget.value = (
-        testdir := os.path.join(os.path.curdir, testdir_name)
+        testdir := os.path.join(os.path.curdir, TEST_DIR_NAME)
     )
     try:
         st.start_export()
         start = time.time()
-        while len(glob(os.path.join(testdir, "*.tif"))) < 10 and time.time() - start < 20:
+        while (
+            len(glob(os.path.join(testdir, "*.tif"))) < 10
+            and time.time() - start < 20
+        ):
             time.sleep(1)
             logger.debug("waiting for tifs")
         assert len(flist := glob(os.path.join(testdir, "*.tif"))) == 10
@@ -90,7 +94,8 @@ def test_substack(make_napari_viewer, test_stack):
     finally:
         shutil.rmtree(testdir)
 
-def test_project(make_napari_viewer, test_stack):
+
+def test_projection(make_napari_viewer, test_stack):
     v = make_napari_viewer()
     v.add_image(**test_stack)
 
