@@ -1,7 +1,7 @@
 import napari
 
 from adc._sub_stack import SubStack
-from adc.tests.test_projection import TIF_PATH
+from adc.tests.test_projection import TIF_PATH, tif_file
 
 
 def test_substack_single_channel(make_napari_viewer, tif_file):

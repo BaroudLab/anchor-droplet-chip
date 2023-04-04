@@ -10,7 +10,7 @@ TIF_PATH = "test.tif"
 TIF_SHAPE = (3, 4, 2**13, 2**10)
 
 
-@fixture(scope="module")
+@fixture
 def tif_file():
     if os.path.exists(TIF_PATH):
         os.remove(TIF_PATH)
