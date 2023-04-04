@@ -16,8 +16,6 @@ from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 from ._sub_stack import SubStack
 
-logging.config.fileConfig("logging.conf")
-
 logger = logging.getLogger(__name__)
 
 

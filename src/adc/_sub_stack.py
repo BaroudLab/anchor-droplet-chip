@@ -14,8 +14,6 @@ from napari.layers import Image
 from napari.utils.notifications import show_warning
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
-logging.config.fileConfig("logging.conf")
-
 logger = logging.getLogger(__name__)
 
 
@@ -226,7 +224,6 @@ class SubStack(QWidget):
         logger.debug(f"new labels: {dims.axis_labels}")
 
     def reset_choices(self):
-
         self.data_widget.reset_choices()
         logger.debug(f"reset choises from input {self.data_widget.choices}")
         self.init_meta()

@@ -17,8 +17,6 @@ from napari.layers import Image
 from napari.utils.notifications import show_error, show_info, show_warning
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
-logging.config.fileConfig("logging.conf")
-
 logger = logging.getLogger(__name__)
 
 
