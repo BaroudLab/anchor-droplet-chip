@@ -103,7 +103,7 @@ def read_tif(path):
             arr,
             {
                 "channel_axis": channel_axis,
-                "metadata": {"path": path},
+                "metadata": {"path": path, "dask_data": d},
                 "colormap": colormap,
                 "contrast_limits": contrast_limits,
             },
@@ -144,7 +144,6 @@ def read_zarr(path):
         ]
         datasets = [da.from_zarr(p) for p in dataset_paths]
     except Exception as e:
-
         logger.error(f"Error opening .zattr: {e}")
         datasets = da.from_zarr(path)
 
