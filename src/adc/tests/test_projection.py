@@ -23,3 +23,6 @@ def test_projection(make_napari_viewer, tif_file):
     layers = v.open(TIF_PATH, plugin="anchor-droplet-chip")
     assert len(layers) == 4
     p = ProjectAlong(v)
+    p.axis_selector.value = "Z:3"
+    new_layers = p.make_projection()
+    assert tuple(new_layers[0].metadata["sizes"].keys()) == tuple("CYX")

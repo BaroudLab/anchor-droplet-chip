@@ -79,7 +79,7 @@ class ProjectAlong(QWidget):
         self.meta["dask_data"] = self.projection
         ddata = self.projection
 
-        self.viewer.add_image(
+        return self.viewer.add_image(
             ddata
             if max(ddata.shape) < 4000
             else [ddata[..., :: 2**i, :: 2**i] for i in range(4)],
