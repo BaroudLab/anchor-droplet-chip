@@ -16,6 +16,7 @@ from ._count_widget import (
 )
 
 logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
 
 
 def napari_get_reader(path):
@@ -90,20 +91,28 @@ def read_tif(path):
     except (ValueError, KeyError):
         channel_axis = None
 
-    try:
-        ranges = data.imagej_metadata["Ranges"]
-        contrast_limits = [
-            [ranges[2 * i], ranges[2 * i + 1]] for i in range(len(ranges) // 2)
-        ]
-    except (ValueError, KeyError):
-        contrast_limits = None
+    if data.is_imagej:
+        try:
+            ranges = data.imagej_metadata["Ranges"]
+            logger.debug(f"Ranges: {ranges}")
+            contrast_limits = [
+                [ranges[2 * i], ranges[2 * i + 1]]
+                for i in range(len(ranges) // 2)
+            ]
+        except KeyError:
+            contrast_limits = None
+
+        IJaxes = "TZCYX"
+        sizes = {l: s for l, s in zip(IJaxes[-len(d.shape) :], d.shape)}
+    else:
+        sizes = None
 
     out = [
         (
             arr,
             {
                 "channel_axis": channel_axis,
-                "metadata": {"path": path, "dask_data": d},
+                "metadata": {"path": path, "dask_data": d, "sizes": sizes},
                 "colormap": colormap,
                 "contrast_limits": contrast_limits,
             },
