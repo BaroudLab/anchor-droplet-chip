@@ -67,9 +67,9 @@ class SubStack(QWidget):
         labels = list(self.out_sizes)
         try:
             channel_axis = labels.index("C")
-        except IndexError:
+        except ValueError:
             channel_axis = None
-        self.viewer.add_image(
+        return self.viewer.add_image(
             self.out_dask,
             name=f"{self.selected_layer.name}_{self.crop_coords}",
             channel_axis=channel_axis,

@@ -7,13 +7,14 @@ from pytest import fixture
 from adc._projection_stack import ProjectAlong
 
 TIF_PATH = "test.tif"
+TIF_SHAPE = (3, 4, 2**13, 2**10)
 
 
 @fixture
 def tif_file():
     if os.path.exists(TIF_PATH):
         os.remove(TIF_PATH)
-    stack = np.zeros((3, 4, 2**13, 2**10), dtype="uint16")  # z, c, y, x
+    stack = np.zeros(TIF_SHAPE, dtype="uint16")  # z, c, y, x
     tf.imwrite(TIF_PATH, stack, imagej=True)
     return TIF_PATH
 
