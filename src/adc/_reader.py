@@ -102,8 +102,7 @@ def read_tif(path):
         except KeyError:
             contrast_limits = None
 
-        IJaxes = "TZCYX"
-        sizes = {l: s for l, s in zip(IJaxes[-len(d.shape) :], d.shape)}
+        sizes = {l: s for l, s in zip(data.series[0].axes, d.shape)}
     else:
         sizes = None
 
