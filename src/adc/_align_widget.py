@@ -65,6 +65,9 @@ class DetectWells(QWidget):
     def _detect(self):
         logger.info("Start detecting")
         data_layer = self.viewer.layers[self.select_image.current_choice]
+
+        assert isinstance(path := get_path(data_layer), str)
+        logger.debug(f"data path: {path}")
         if data_layer.multiscale:
             n_scales = len(data_layer.data)
             assert (
@@ -132,6 +135,15 @@ class DetectWells(QWidget):
         self.select_image.reset_choices(event)
         self.select_template.reset_choices(event)
         self.select_centers.reset_choices(event)
+
+
+def get_path(data_layer):
+    if (path := data_layer.source.path) is not None:
+        return path
+    elif (path := data_layer.metadata["path"]) is not None:
+        return path
+    else:
+        raise ValueError("Unable to get path of the dataset")
 
 
 def show_droplet_layer(viewer, data):
