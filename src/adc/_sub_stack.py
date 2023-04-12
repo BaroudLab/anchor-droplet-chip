@@ -77,7 +77,7 @@ class SubStack(QWidget):
                 "pixel_size_um": self.pixel_size_um,
                 "sizes": self.out_sizes,
                 "substack_coords": self.crop_coords,
-                "source_path": self.path,
+                "path": self.path,
                 "dask_data": self.out_dask,
             },
         )

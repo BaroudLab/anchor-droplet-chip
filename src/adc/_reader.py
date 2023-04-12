@@ -144,7 +144,7 @@ def read_json(path):
 
 def read_zarr(path):
     print(f"read_zarr {path}")
-
+    meta = {"path": path}
     try:
         attrs = json.load(open(os.path.join(path, ".zattrs")))
         info = attrs["multiscales"]["multiscales"][0]
@@ -183,7 +183,12 @@ def read_zarr(path):
     except Exception as e:
         print("name exception", e.args)
         name = os.path.basename(path)
-    meta = {"path": path}
+
+    try:
+        pixel_size_um = info["pixel_size_um"]
+    except (UnboundLocalError, KeyError):
+        pixel_size_um = None
+    meta["pixel_size_um"] = pixel_size_um
 
     try:
         if "sizes" in info:
