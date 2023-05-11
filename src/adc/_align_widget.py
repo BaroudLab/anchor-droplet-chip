@@ -184,15 +184,16 @@ def move_centers(centers, tvec: dict, figure_size):
 
 def locate_wells(bf, template, ccenters):
     try:
-        tvec = align.reg.similarity(
-            align.pad(template, bf.shape),
-            bf,
+        tvec = align.get_transform(
+            image=bf, 
+            template=template,
             constraints={
                 "scale": [1, 0.1],
                 "tx": [0, 150],
                 "ty": [0, 150],
                 "angle": [0, 10],
             },
+            pad_ratio=1.3
         )
         logger.info(tvec)
         return move_centers(ccenters, tvec, bf.shape)
