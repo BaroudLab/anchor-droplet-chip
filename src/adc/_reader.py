@@ -179,9 +179,6 @@ def read_zarr(path):
         name = info["name"]
     except KeyError:
         print("name not found")
-        name = [os.path.basename(path)] * datasets[0].shape[channel_axis]
-    except Exception as e:
-        print("name exception", e.args)
         name = os.path.basename(path)
 
     try:
