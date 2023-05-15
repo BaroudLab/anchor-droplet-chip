@@ -67,55 +67,71 @@ class CountCells(QWidget):
 
         self.setLayout(self.layout)
 
-    def _update_detections(self):
+    def process_stack(self):
+        pass
+
+    def _pick_data_ref(self):
+        "Get dask array to know the shape etc"
+        selected_layer = self.viewer.layers[self.select_TRITC.current_choice]
+        logger.debug(f"selected_layer: {selected_layer}")
+        if selected_layer.multiscale:
+            self.ddata_ref = selected_layer.data[0]
+            logger.debug(
+                f"multiscale data: selecting highest resolution: {self.ddata_ref}"
+            )
+        else:
+            self.ddata_ref = selected_layer.data
+            logger.debug(f"not multiscale data: {self.ddata_ref}")
+
+    def _load_data_to_memory(self):
         show_info("Loading the data")
         with progress(desc="Loading data") as prb:
-            selected_layer = self.viewer.layers[
-                self.select_TRITC.current_choice
-            ]
-            logger.debug(f"selected_layer: {selected_layer}")
-            if selected_layer.multiscale:
-                ddata = selected_layer.data[0]
-                logger.debug(
-                    f"multiscale data: selecting highest resolution: {ddata}"
-                )
+            self._pick_data_ref()
+            if isinstance(self.ddata_ref, da.Array):
+                self.ddata_mem = self.ddata_ref.compute()
+                logger.debug(f"compute dask array: {self.ddata_mem}")
             else:
-                ddata = selected_layer.data
-                logger.debug(f"not multiscale data: {ddata}")
-            if isinstance(ddata, da.Array):
-                ddata = ddata.compute()
-                logger.debug(f"compute dask array: {ddata}")
-            if ddata.ndim == 2:
-                ddata = np.reshape(ddata, (1, *ddata.shape))
-                logger.debug(f"reshaping: {ddata}")
+                self.ddata_mem = self.ddata_ref
+            if self.ddata_mem.ndim == 2:
+                self.ddata_mem = np.reshape(
+                    self.ddata_mem, (1, *self.ddata_mem.shape)
+                )
+                logger.debug(f"reshaping: {self.ddata_mem}")
             else:
                 logger.debug("Finished data loading")
-            prb.close()
 
-        centers = (
-            centers_layer := self.viewer.layers[
-                self.select_centers.current_choice
-            ]
-        ).data
-        logger.debug(f"selected centers: {centers}")
+    def _pick_centers(self):
+        self.centers_layer = self.viewer.layers[
+            self.select_centers.current_choice
+        ]
+        self.centers = self.centers_layer.data
+        logger.debug(f"selected centers: {self.centers}")
         try:
             logger.debug(f"creating dataframe with columns ['chip', 'y', 'x']")
-            self.df = pd.DataFrame(data=centers, columns=["chip", "y", "x"])
+            self.df = pd.DataFrame(
+                data=self.centers, columns=["chip", "y", "x"]
+            )
             logger.debug(f"created dataframe {self.df}")
         except ValueError as e:
             logger.debug(f"problem with dataframe {e}")
             show_error("Choose the right layer with actual localizations")
-            return
+            raise e
+
+    def _update_detections(self):
+        self._pick_data_ref()
+        self._load_data_to_memory()
+        self._pick_centers()
+
         show_info("Data loaded. Counting")
         self.viewer.window._status_bar._toggle_activity_dock(True)
         peaks_raw = list(
             map(
                 partial(
                     count.get_global_coordinates_from_well_coordinates,
-                    fluo=ddata,
+                    fluo=self.ddata_mem,
                     size=self.radius,
                 ),
-                progress(centers, desc="Localizing:"),
+                progress(self.centers, desc="Localizing:"),
             )
         )
         show_info("Done localizing")
@@ -123,14 +139,16 @@ class CountCells(QWidget):
         detections = reduce(add, peaks_raw)
 
         counts_layer = self.viewer.add_points(
-            centers_layer.data, text=n_peaks_per_well, **COUNTS_LAYER_PROPS
+            self.centers_layer.data,
+            text=n_peaks_per_well,
+            **COUNTS_LAYER_PROPS,
         )
 
         detections_layer = self.viewer.add_points(
             detections, **DETECTION_LAYER_PROPS
         )
         try:
-            path = selected_layer.source.path
+            path = self.selected_layer.source.path
             detections_layer.save(
                 ppp := os.path.join(path, DETECTION_CSV_SUFFIX)
             )
