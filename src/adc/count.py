@@ -53,7 +53,6 @@ def get_cell_numbers(
     props = regionprops(labels)
 
     def get_raw_peaks(i):
-
         if bf is None:
             return get_peaks(
                 multiwell_image[props[i].slice],
@@ -126,7 +125,7 @@ def get_global_coordinates_from_well_coordinates(
         fluo_data=fluo[int(chip_index)], center=(y, x), size=size
     )
     peaks_with_chip_index = [
-        add_chip_index_to_coords(p, napari_center[0]) for p in peaks
+        add_chip_index_to_coords(p, chip_index) for p in peaks
     ]
     return peaks_with_chip_index
 
@@ -208,7 +207,6 @@ def main(
     poisson=True,
     **kwargs,
 ):
-
     """
     Reads the data and saves the counting table
     Parameters:
