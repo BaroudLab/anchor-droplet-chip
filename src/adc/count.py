@@ -12,6 +12,7 @@ from scipy import ndimage as ndi
 from skimage.feature import peak_local_max
 from skimage.measure import regionprops
 from tifffile import imread
+from tqdm import tqdm
 
 from adc.fit import poisson as fit_poisson
 
@@ -118,7 +119,7 @@ def add_chip_index_to_coords(coords: tuple, chip_index):
     return (chip_index, *coords)
 
 
-async def count_recursive(data, positions, size, index=[]):
+async def count_recursive(data, positions, size, index=[], progress=tqdm):
     """
     Recurcively processing 2d arrays.
     data: np.ndarray n-dimensional
@@ -132,7 +133,7 @@ async def count_recursive(data, positions, size, index=[]):
     if data.ndim > 2:
         result = []
 
-        for i, d in enumerate(data):
+        for i, d in progress(enumerate(data)):
             new_ind = index + [i]
             logger.debug(f"index {new_ind}")
             if positions.shape[-1] < len(data.shape):
