@@ -3,6 +3,7 @@ import pathlib
 from functools import partial
 from importlib.metadata import PackageNotFoundError, version
 
+import dask.array as da
 import fire
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,7 +22,7 @@ except PackageNotFoundError:
     __version__ = "Unknown"
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s %(levelname)s : %(message)s"
+    level=logging.DEBUG, format="%(asctime)s %(levelname)s : %(message)s"
 )
 logger = logging.getLogger("adc.count")
 
@@ -117,10 +118,66 @@ def add_chip_index_to_coords(coords: tuple, chip_index):
     return (chip_index, *coords)
 
 
+async def count_recursive(data, positions, size, index=[]):
+    """
+    Recurcively processing 2d arrays.
+    data: np.ndarray n-dimensional
+    positions: np.ndarray 2D (m, n')
+        where m - number of positions
+        n' - number of dimensions, can be smaller than n, but not bigger
+        two last columns: y, x
+        others: dimentionsl indices (from napari)
+    """
+    logger.debug(f"count {data}")
+    if data.ndim > 2:
+        result = []
+
+        for i, d in enumerate(data):
+            new_ind = index + [i]
+            logger.debug(f"index {new_ind}")
+            if positions.shape[-1] < len(data.shape):
+                use_coords = positions
+            else:
+                use_coords = positions[positions[:, 0] == i]
+            result += await count_recursive(
+                d, positions=use_coords, size=size, index=new_ind
+            )
+        return result
+    else:
+        peaks = await count2d(data, positions=positions[:, -2:], size=size)
+        logger.debug(
+            f"Finished counting index {index}: {len(peaks)} peaks found"
+        )
+        out = [index + list(o) for o in peaks]
+        logger.debug(f"Added index {index} to {len(peaks)} peaks")
+        return out
+
+
+async def count2d(data, positions, size):
+    logger.debug(f"count 2d {data.shape}, {len(positions)} positions")
+    if isinstance(data, da.Array):
+        data = await load_mem(data)
+        logger.debug(f"loaded {data.shape}")
+
+    logger.debug("Start counting")
+    peaks = np.vstack(
+        [
+            get_global_peaks(fluo_data=data, center=center, size=size)
+            for center in positions
+        ]
+    )
+    return peaks
+
+
+async def load_mem(dask_array: da.Array) -> np.ndarray:
+    logger.debug(f"loading {dask_array}")
+    return dask_array.compute()
+
+
 def get_global_coordinates_from_well_coordinates(
     napari_center: tuple, fluo, size
 ):
-    chip_index, y, x = napari_center
+    *chip_index, y, x = napari_center
     peaks = get_global_peaks(
         fluo_data=fluo[int(chip_index)], center=(y, x), size=size
     )
@@ -152,7 +209,7 @@ def get_peaks(
     peaks = peak_local_max(
         image_max, min_distance=min_distance, threshold_abs=threshold_abs
     )
-    logger.debug(f"found {len(peaks)} cells")
+    # logger.debug(f"found {len(peaks)} cells")
     if plot:
         if bf_crop is None:
             fig, ax = plt.subplots(1, 2, sharey=True)
