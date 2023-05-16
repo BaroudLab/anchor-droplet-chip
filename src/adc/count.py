@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import pathlib
 from functools import partial
@@ -119,7 +120,16 @@ def add_chip_index_to_coords(coords: tuple, chip_index):
     return (chip_index, *coords)
 
 
-async def count_recursive(data, positions, size, index=[], progress=tqdm):
+async def count_recursive(
+    data,
+    positions,
+    size,
+    index=[],
+    progress=tqdm,
+    loc_result=[],
+    count_result=[],
+    droplet_pos=[],
+):
     """
     Recurcively processing 2d arrays.
     data: np.ndarray n-dimensional
@@ -128,10 +138,14 @@ async def count_recursive(data, positions, size, index=[], progress=tqdm):
         n' - number of dimensions, can be smaller than n, but not bigger
         two last columns: y, x
         others: dimentionsl indices (from napari)
+    returns:
+    --------
+    (loc_result, count_result:list)
     """
     logger.debug(f"count {data}")
     if data.ndim > 2:
-        result = []
+        if loc_result is None:
+            loc_result = []
 
         for i, d in progress(enumerate(data)):
             new_ind = index + [i]
@@ -140,34 +154,48 @@ async def count_recursive(data, positions, size, index=[], progress=tqdm):
                 use_coords = positions
             else:
                 use_coords = positions[positions[:, 0] == i]
-            result += await count_recursive(
+            (
+                bac_locs,
+                per_droplet_counts,
+                coords_droplets,
+            ) = await count_recursive(
                 d, positions=use_coords, size=size, index=new_ind
             )
-        return result
+            loc_result += bac_locs
+            count_result += per_droplet_counts
+            droplet_pos += coords_droplets
+        return loc_result, count_result, droplet_pos
     else:
-        peaks = await count2d(data, positions=positions[:, -2:], size=size)
+        coords = positions[:, -2:]
+        peaks, counts = await count2d(data, positions=coords, size=size)
         logger.debug(
             f"Finished counting index {index}: {len(peaks)} peaks found"
         )
-        out = [index + list(o) for o in peaks]
+        loc_out = [index + list(o) for o in peaks]
+        count_out = [index + [o] for o in counts]
+        droplets_out = [index + list(o) for o in coords]
         logger.debug(f"Added index {index} to {len(peaks)} peaks")
-        return out
+        return loc_out, count_out, droplets_out
 
 
-async def count2d(data, positions, size):
+async def count2d(data: np.ndarray, positions: list, size: int):
+    """
+    returns 2d array of positions and list of counts per position
+    """
     logger.debug(f"count 2d {data.shape}, {len(positions)} positions")
     if isinstance(data, da.Array):
         data = await load_mem(data)
         logger.debug(f"loaded {data.shape}")
 
     logger.debug("Start counting")
+    asyncio.sleep(0)
     peaks = np.vstack(
-        [
+        ppp := [
             get_global_peaks(fluo_data=data, center=center, size=size)
             for center in positions
         ]
     )
-    return peaks
+    return peaks, list(map(len, ppp))
 
 
 async def load_mem(dask_array: da.Array) -> np.ndarray:
