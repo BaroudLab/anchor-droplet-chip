@@ -146,7 +146,7 @@ def count_recursive(
         locs = []
         counts = []
         pos = []
-        for i, d in progress(enumerate(data)):
+        for i, d in enumerate(progress(data)):
             new_ind = index + [i]
             logger.debug(f"index {new_ind}")
             if positions.shape[-1] < len(data.shape):
@@ -176,7 +176,7 @@ def count_recursive(
             f"Finished counting index {index}: {len(peaks)} peaks found"
         )
         loc_out = [index + list(o) for o in peaks]
-        count_out = [index + [o] for o in counts]
+        count_out = counts
         droplets_out = [index + list(o) for o in coords]
         logger.debug(f"Added index {index} to {len(peaks)} peaks")
         return loc_out, count_out, droplets_out
@@ -193,12 +193,12 @@ def count2d(data: np.ndarray, positions: list, size: int):
 
     logger.debug("Start counting")
     peaks = np.vstack(
-        ppp := [
+        positions_per_droplet := [
             get_global_peaks(fluo_data=data, center=center, size=size)
             for center in positions
         ]
     )
-    return peaks, list(map(len, ppp))
+    return peaks, list(map(len, positions_per_droplet))
 
 
 def load_mem(dask_array: da.Array) -> np.ndarray:

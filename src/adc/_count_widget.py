@@ -13,6 +13,8 @@ from napari.utils import progress
 from napari.utils.notifications import show_error, show_info
 from qtpy.QtWidgets import QLineEdit, QPushButton, QVBoxLayout, QWidget
 
+from ._align_widget import DROPLETS_CSV_SUFFIX
+
 from adc import count
 
 COUNTS_LAYER_PROPS = dict(
@@ -124,7 +126,7 @@ class CountCells(QWidget):
 
         self.detections_layer.data = locs
         self.counts_layer.data = drops
-        self.counts_layer.text = [n[-1] for n in n_peaks_per_well]
+        self.counts_layer.text = n_peaks_per_well
 
         try:
             path = self.selected_layer.source.path
@@ -156,6 +158,20 @@ class CountCells(QWidget):
 
             with open(ppp := path + COUNTS_JSON_SUFFIX, "w") as fp:
                 json.dump(n_peaks_per_well, fp, indent=2)
+        logger.info(f"Saving counts into {ppp}")
+
+        try:
+            ppp = os.path.join(path, DROPLETS_CSV_SUFFIX)
+            droplets_df = pd.DataFrame(
+                data=drops, 
+                columns=[f"axis-{i}" for i in range(len(drops[0]))]
+            )
+            droplets_df.to_csv(ppp)
+        except Exception as e:
+            logger.debug(f"Unable to save droplets inside the zarr: {e}")
+            logger.debug(f"Saving in a separate file")
+
+            droplets_df.to_csv(ppp := path + DROPLETS_CSV_SUFFIX)
         logger.info(f"Saving counts into {ppp}")
 
     def show_counts(self, counts):
