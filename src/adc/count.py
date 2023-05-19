@@ -171,7 +171,7 @@ def count_recursive(
         return loc_result, count_result, droplet_pos
     else:
         coords = positions[:, -2:]
-        peaks, counts = count2d(data, positions=coords, size=size)
+        peaks, counts, table = count2d(data, positions=coords, size=size)
         logger.debug(
             f"Finished counting index {index}: {len(peaks)} peaks found"
         )
@@ -182,7 +182,7 @@ def count_recursive(
         return loc_out, count_out, droplets_out
 
 
-def count2d(data: np.ndarray, positions: list, size: int):
+def count2d(data: np.ndarray, positions: list, size: int, **table_args):
     """
     returns 2d array of positions and list of counts per position
     """
@@ -198,7 +198,15 @@ def count2d(data: np.ndarray, positions: list, size: int):
             for center in positions
         ]
     )
-    return peaks, list(map(len, positions_per_droplet))
+    counts = list(map(len, positions_per_droplet))
+    table = pd.DataFrame(
+        data={
+            "count": counts, 
+            "label": np.arange(len(counts)) + 1,
+            **table_args
+        }
+    )
+    return peaks, counts, table
 
 
 def load_mem(dask_array: da.Array) -> np.ndarray:
