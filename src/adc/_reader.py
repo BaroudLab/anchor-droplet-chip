@@ -222,7 +222,7 @@ def read_zarr(path):
             table = pd.read_csv(det_path, index_col=0)
             output.append(
                 (
-                    table[["axis-0", "axis-1", "axis-2"]].values,
+                    table.values,
                     {"metadata": {"path": det_path}, **DETECTION_LAYER_PROPS},
                     "points",
                 )
@@ -244,7 +244,7 @@ def read_zarr(path):
                 counts = None
             output.append(
                 (
-                    table[["axis-0", "axis-1", "axis-2"]].values,
+                    table.values,
                     {
                         "metadata": {"path": det_path},
                         "text": counts,
