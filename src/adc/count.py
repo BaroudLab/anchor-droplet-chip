@@ -255,7 +255,6 @@ def count2d(
     returns 2d array of positions and list of counts per position
     """
     logger.debug(f"count 2d {data.shape}, {len(positions)} positions")
-    print(localizer)
     if isinstance(data, da.Array):
         data = loader(data)
         logger.debug(f"loaded {data.shape}")
@@ -301,7 +300,6 @@ def count_recursive(
     (loc_result, count_result:list, droplets_out: list, df: pd.DataFrame)
     """
     logger.debug(f"count {data}")
-    print(localizer)
     if data.ndim > 2:
         locs = []
         counts = []
