@@ -162,7 +162,7 @@ def count_recursive(
             ) = count_recursive(
                 d, positions=use_coords, size=size, index=new_ind
             )
-            tables += df
+            tables.append(df)
             locs += bac_locs
             loc_result = locs
 
@@ -199,10 +199,11 @@ def count_recursive(
 def make_table(droplets_out, counts):
     droplets_out = np.array(droplets_out)
     counts = np.array(counts).reshape((len(counts), 1))
+    labels = (np.arange(len(counts)) + 1).reshape((len(counts), 1))
     return pd.DataFrame(
-        data=np.hstack([droplets_out, counts]),
+        data=np.hstack([droplets_out, counts, labels]),
         columns=[f"index-{i}" for i in range(len(droplets_out[0][:-2]))]
-        + ["y", "x", "n_cells"],
+        + ["y", "x", "n_cells", "label"],
     )
 
 
