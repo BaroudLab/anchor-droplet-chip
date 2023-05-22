@@ -189,18 +189,19 @@ def count_recursive(
         logger.debug(f"Added index {index} to {len(peaks)} peaks")
 
         try:
-            df = make_table(index, coords, counts)
+            df = make_table(droplets_out, counts)
         except Exception as e:
             df = None
             logger.error(f"Making dataframe failed: {e}")
         return loc_out, count_out, droplets_out, df
 
 
-def make_table(index, coords, counts):
-    droplets_out = np.array([index + list(o) for o in coords])
+def make_table(droplets_out, counts):
+    droplets_out = np.array(droplets_out)
+    counts = np.array(counts)
     return pd.DataFrame(
         data=np.hstack([droplets_out, counts]),
-        columns=[f"index-{i}" for i in range(len(index))]
+        columns=[f"index-{i}" for i in range(len(droplets_out[0][:-2]))]
         + ["y", "x", "n_cells"],
     )
 
