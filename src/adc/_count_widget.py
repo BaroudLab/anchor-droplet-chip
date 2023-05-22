@@ -13,9 +13,11 @@ from napari.utils import progress
 from napari.utils.notifications import show_error, show_info
 from qtpy.QtWidgets import QLineEdit, QPushButton, QVBoxLayout, QWidget
 
+from adc import count
+
 from ._align_widget import DROPLETS_CSV_SUFFIX
 
-from adc import count
+TABLE_NAME = "table.csv"
 
 COUNTS_LAYER_PROPS = dict(
     name="Counts",
@@ -122,7 +124,7 @@ class CountCells(QWidget):
     def save_results(self):
         show_info("Done localizing ")
 
-        locs, n_peaks_per_well, drops = self.out
+        locs, n_peaks_per_well, drops, table_df = self.out
 
         self.detections_layer.data = locs
         self.counts_layer.data = drops
@@ -163,8 +165,7 @@ class CountCells(QWidget):
         try:
             ppp = os.path.join(path, DROPLETS_CSV_SUFFIX)
             droplets_df = pd.DataFrame(
-                data=drops, 
-                columns=[f"axis-{i}" for i in range(len(drops[0]))]
+                data=drops, columns=[f"axis-{i}" for i in range(len(drops[0]))]
             )
             droplets_df.to_csv(ppp)
         except Exception as e:
@@ -173,6 +174,14 @@ class CountCells(QWidget):
 
             droplets_df.to_csv(ppp := path + DROPLETS_CSV_SUFFIX)
         logger.info(f"Saving counts into {ppp}")
+
+        try:
+            ppp = os.path.join(os.path.dirname(path), TABLE_NAME)
+
+            table_df.to_csv(ppp)
+            logger.info(f"Saving table into {ppp}")
+        except Exception as e:
+            logger.error(f"Unable to save table into {ppp}: {e}")
 
     def show_counts(self, counts):
         self.counts = counts

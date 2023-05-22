@@ -146,6 +146,7 @@ def count_recursive(
         locs = []
         counts = []
         pos = []
+        tables = []
         for i, d in enumerate(progress(data)):
             new_ind = index + [i]
             logger.debug(f"index {new_ind}")
@@ -157,9 +158,11 @@ def count_recursive(
                 bac_locs,
                 per_droplet_counts,
                 coords_droplets,
+                df,
             ) = count_recursive(
                 d, positions=use_coords, size=size, index=new_ind
             )
+            tables += df
             locs += bac_locs
             loc_result = locs
 
@@ -168,7 +171,12 @@ def count_recursive(
 
             pos += coords_droplets
             droplet_pos = pos
-        return loc_result, count_result, droplet_pos
+        return (
+            loc_result,
+            count_result,
+            droplet_pos,
+            pd.concat(tables, ignore_index=True),
+        )
     else:
         coords = positions[:, -2:]
         peaks, counts, table = count2d(data, positions=coords, size=size)
@@ -179,7 +187,22 @@ def count_recursive(
         count_out = counts
         droplets_out = [index + list(o) for o in coords]
         logger.debug(f"Added index {index} to {len(peaks)} peaks")
-        return loc_out, count_out, droplets_out
+
+        try:
+            df = make_table(index, coords, counts)
+        except Exception as e:
+            df = None
+            logger.error(f"Making dataframe failed: {e}")
+        return loc_out, count_out, droplets_out, df
+
+
+def make_table(index, coords, counts):
+    droplets_out = [index + list(o) for o in coords]
+    return pd.DataFrame(
+        data=np.hstack([droplets_out, counts]),
+        columns=[f"index-{i}" for i in range(len(index))]
+        + ["y", "x", "n_cells"],
+    )
 
 
 def count2d(data: np.ndarray, positions: list, size: int, **table_args):
@@ -201,9 +224,9 @@ def count2d(data: np.ndarray, positions: list, size: int, **table_args):
     counts = list(map(len, positions_per_droplet))
     table = pd.DataFrame(
         data={
-            "count": counts, 
+            "count": counts,
             "label": np.arange(len(counts)) + 1,
-            **table_args
+            **table_args,
         }
     )
     return peaks, counts, table
