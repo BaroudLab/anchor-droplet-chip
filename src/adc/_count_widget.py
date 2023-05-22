@@ -20,9 +20,7 @@ from ._align_widget import DROPLETS_CSV_SUFFIX
 TABLE_NAME = "table.csv"
 
 COUNTS_LAYER_PROPS = dict(
-    name="Counts",
-    face_color="#ffffff00",
-    edge_color="#ff007f00",
+    name="Counts", size=300, face_color="#00000000", edge_color="#00880088"
 )
 COUNTS_JSON_SUFFIX = ".counts.json"
 
