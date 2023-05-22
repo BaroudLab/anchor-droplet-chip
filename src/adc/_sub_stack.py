@@ -191,10 +191,15 @@ class SubStack(QWidget):
             logger.debug(f"dask array from metadata {self.dask_array}")
 
         except KeyError:
-            if not isinstance(self.selected_layer.data, da.Array):
-                self.dask_array = da.from_array(self.selected_layer.data)
+            if self.selected_layer.multiscale:
+                data = self.selected_layer.data[0]
             else:
-                self.dask_array = self.selected_layer.data
+                data = self.selected_layer.data
+
+            if not isinstance(data, da.Array):
+                self.dask_array = da.from_array(data)
+            else:
+                self.dask_array = data
             show_warning(
                 f"No dask_data found in metadata {self.selected_layer.metadata}, creating one {self.dask_array}"
             )

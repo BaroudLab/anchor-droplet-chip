@@ -2,7 +2,9 @@ import logging
 import pathlib
 from functools import partial
 from importlib.metadata import PackageNotFoundError, version
+from typing import Tuple, Union
 
+import dask.array as da
 import fire
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,6 +13,7 @@ from scipy import ndimage as ndi
 from skimage.feature import peak_local_max
 from skimage.measure import regionprops
 from tifffile import imread
+from tqdm import tqdm
 
 from adc.fit import poisson as fit_poisson
 
@@ -21,7 +24,7 @@ except PackageNotFoundError:
     __version__ = "Unknown"
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s %(levelname)s : %(message)s"
+    level=logging.DEBUG, format="%(asctime)s %(levelname)s : %(message)s"
 )
 logger = logging.getLogger("adc.count")
 
@@ -53,7 +56,6 @@ def get_cell_numbers(
     props = regionprops(labels)
 
     def get_raw_peaks(i):
-
         if bf is None:
             return get_peaks(
                 multiwell_image[props[i].slice],
@@ -90,7 +92,10 @@ def get_cell_numbers(
     )
 
 
-def crop(stack: np.ndarray, center: tuple, size: int):
+def cropNd(stack: np.ndarray, center: tuple, size: int):
+    """
+    Crops the last two dimensions around the center(y,x) with the size(size, size)
+    """
     im = stack[
         :,
         int(center[0]) - size // 2 : int(center[0]) + size // 2,
@@ -100,64 +105,92 @@ def crop(stack: np.ndarray, center: tuple, size: int):
 
 
 def crop2d(img: np.ndarray, center: tuple, size: int):
+    """
+    2D crop
+    """
     im = img[
-        int(center[0]) - size // 2 : int(center[0]) + size // 2,
-        int(center[1]) - size // 2 : int(center[1]) + size // 2,
+        int(center[0]) - size // 2 : int(center[0]) + size - size // 2,
+        int(center[1]) - size // 2 : int(center[1]) + size - size // 2,
     ]
     return im
 
 
-def gdif(array2d, dif_gauss_sigma=(1, 3)):
+def gdif(
+    array2d: np.ndarray,
+    dif_gauss_sigma: Tuple[float, float] = (1, 3),
+    op=ndi.gaussian_filter,
+):
+    """
+    Computes gaussian difference filter with two sigmas frpm 2d array array2d
+    """
     array2d = array2d.astype("f")
-    return ndi.gaussian_filter(
-        array2d, sigma=dif_gauss_sigma[0]
-    ) - ndi.gaussian_filter(array2d, sigma=dif_gauss_sigma[1])
+    return op(array2d, sigma=dif_gauss_sigma[0]) - op(
+        array2d, sigma=dif_gauss_sigma[1]
+    )
 
 
 def add_chip_index_to_coords(coords: tuple, chip_index):
     return (chip_index, *coords)
 
 
-def get_global_coordinates_from_well_coordinates(
-    napari_center: tuple, fluo, size
-):
-    chip_index, y, x = napari_center
-    peaks = get_global_peaks(
-        fluo_data=fluo[int(chip_index)], center=(y, x), size=size
+def make_table(droplets_out: list, counts: list) -> pd.DataFrame:
+    """
+    Merging horizontally the provided tables and adding labels
+    Parameters:
+    -----------
+    droplets_out: list[[index-0, index-1, ... index-n, y, x]]
+    counts: list(n1,n2,...n[len(droplets_out)]) -
+        list of counts of the same lenght as droplets
+    Return:
+    -------
+    dataframe: pd.DataFrame with the following columns:
+        [index-0, index-1, ..., y, x, n_cells, label],
+        where label being automatic index starting with 1 and ending with len(counts)
+    """
+    droplets_out = np.array(droplets_out)
+    counts = np.array(counts).reshape((len(counts), 1))
+    labels = (np.arange(len(counts)) + 1).reshape((len(counts), 1))
+    return pd.DataFrame(
+        data=np.hstack([droplets_out, counts, labels]),
+        columns=[f"index-{i}" for i in range(len(droplets_out[0][:-2]))]
+        + ["y", "x", "n_cells", "label"],
     )
-    peaks_with_chip_index = [
-        add_chip_index_to_coords(p, napari_center[0]) for p in peaks
-    ]
-    return peaks_with_chip_index
 
 
-def get_global_peaks(
-    fluo_data: np.ndarray, center: np.ndarray, size: np.ndarray
-):
-    peaks = get_peaks(
-        crop2d(fluo_data, center, size),
-    )
-    return np.array(peaks) + np.array(center) - size / 2
+def load_mem(dask_array: da.Array) -> np.ndarray:
+    """
+    Loads dask array to memory
+    """
+    logger.debug(f"loading {dask_array}")
+    return dask_array.compute()
 
 
 def get_peaks(
-    crop2d,
-    dif_gauss_sigma=(3, 5),
-    min_distance=3,
-    threshold_abs=2,
-    plot=False,
-    title="",
-    bf_crop=None,
+    crop_2d: np.ndarray,
+    dif_gauss_sigma: tuple = (3, 5),
+    min_distance: int = 3,
+    threshold_abs: float = 2,
+    plot: bool = False,
+    title: str = "",
+    bf_crop: Union[np.ndarray, None] = None,
+    peak_op=peak_local_max,
+    gdif_op=gdif,
 ):
-    image_max = gdif(crop2d, dif_gauss_sigma)
-    peaks = peak_local_max(
+    """
+    Applies gaussian difference using gdif_op and localizes the peaks using peak_op.
+    Can plot the drop and localizations if plot is set to True.
+    Returns:
+    list of 2d coordinates
+    """
+    image_max = gdif_op(crop_2d, dif_gauss_sigma)
+    peaks = peak_op(
         image_max, min_distance=min_distance, threshold_abs=threshold_abs
     )
-    logger.debug(f"found {len(peaks)} cells")
+    # logger.debug(f"found {len(peaks)} cells")
     if plot:
         if bf_crop is None:
             fig, ax = plt.subplots(1, 2, sharey=True)
-            ax[0].imshow(crop2d)
+            ax[0].imshow(crop_2d)
             ax[0].set_title(f"raw image {title}")
             ax[1].imshow(image_max)
             ax[1].set_title("Filtered + peak detection")
@@ -169,7 +202,7 @@ def get_peaks(
             ax[0].imshow(bf_crop, cmap="gray")
             ax[0].set_title(f"BF {title}")
 
-            ax[1].imshow(crop2d, vmax=crop2d.mean() + 2 * crop2d.std())
+            ax[1].imshow(crop2d, vmax=crop_2d.mean() + 2 * crop_2d.std())
             ax[1].set_title(f"raw image {title}")
 
             ax[2].imshow(image_max)
@@ -182,18 +215,190 @@ def get_peaks(
     return peaks
 
 
-def get_peaks_per_frame(stack3d, dif_gauss_sigma=(1, 3), **kwargs):
+def get_global_peaks(
+    fluo_data: np.ndarray,
+    center: np.ndarray,
+    size: int,
+    crop_op=crop2d,
+    localizer=get_peaks,
+):
+    """
+    Localizes the peaks around the center, returns the coordinates inside big fluo_data array.
+    Parameters:
+    -----------
+    fluo_data: np.ndarray 2D
+        Fluorescence slice
+    center: tuple(y,x)
+        Central coordinate of a roi
+    size: int
+        Square size of the ROI
+    Return:
+    -------
+    array: np.array([[y0,x0], [y1,x1],...])
+    """
+    peaks = localizer(
+        crop_op(fluo_data, center, size),
+    )
+    return np.array(peaks) + np.array(center) - size / 2
+
+
+def count2d(
+    data: Union[np.ndarray, da.Array],
+    positions: list,
+    size: int,
+    localizer=get_global_peaks,
+    loader=load_mem,
+    crop_op=crop2d,
+    **table_args,
+):
+    """
+    returns 2d array of positions and list of counts per position
+    """
+    logger.debug(f"count 2d {data.shape}, {len(positions)} positions")
+    if isinstance(data, da.Array):
+        data = loader(data)
+        logger.debug(f"loaded {data.shape}")
+
+    logger.debug("Start counting")
+    peaks = np.vstack(
+        positions_per_droplet := [
+            localizer(
+                fluo_data=data, center=center, size=size, crop_op=crop_op
+            )
+            for center in positions
+        ]
+    )
+    counts = list(map(len, positions_per_droplet))
+
+    return peaks, counts
+
+
+def count_recursive(
+    data: da.Array,
+    positions: list,
+    size: int,
+    index: list = [],
+    progress=tqdm,
+    counting_function=count2d,
+    localizer=get_global_peaks,
+    crop_op=crop2d,
+    table_function=make_table,
+    loc_result: list = [],
+    count_result: list = [],
+    droplet_pos: list = [],
+) -> Tuple[list, list, list, pd.DataFrame]:
+    """
+    Recurcively processing 2d arrays.
+    data: np.ndarray n-dimensional
+    positions: np.ndarray 2D (m, n')
+        where m - number of positions
+        n' - number of dimensions, can be smaller than n, but not bigger
+        two last columns: y, x
+        others: dimentionsl indices (from napari)
+    returns:
+    --------
+    (loc_result, count_result:list, droplets_out: list, df: pd.DataFrame)
+    """
+    logger.debug(f"count {data}")
+    if data.ndim > 2:
+        locs = []
+        counts = []
+        pos = []
+        tables = []
+        for i, d in enumerate(progress(data)):
+            new_ind = index + [i]
+            logger.debug(f"index {new_ind}")
+            if positions.shape[-1] < len(data.shape):
+                use_coords = positions
+            else:
+                use_coords = positions[positions[:, 0] == i]
+            (
+                bac_locs,
+                per_droplet_counts,
+                coords_droplets,
+                df,
+            ) = count_recursive(
+                d,
+                positions=use_coords,
+                size=size,
+                index=new_ind,
+                localizer=localizer,
+                counting_function=counting_function,
+                crop_op=crop_op,
+                table_function=table_function,
+            )
+            tables.append(df)
+            locs += bac_locs
+            loc_result = locs
+
+            counts += per_droplet_counts
+            count_result = counts
+
+            pos += coords_droplets
+            droplet_pos = pos
+        return (
+            loc_result,
+            count_result,
+            droplet_pos,
+            pd.concat(tables, ignore_index=True),
+        )
+    else:
+        coords = positions[:, -2:]
+        peaks, counts = counting_function(
+            data=data,
+            positions=coords,
+            size=size,
+            localizer=localizer,
+            crop_op=crop_op,
+        )
+        logger.debug(
+            f"Finished counting index {index}: {len(peaks)} peaks found"
+        )
+        loc_out = [index + list(o) for o in peaks]
+        count_out = counts
+        droplets_out = [index + list(o) for o in coords]
+        logger.debug(f"Added index {index} to {len(peaks)} peaks")
+
+        try:
+            df = table_function(droplets_out, counts)
+        except Exception as e:
+            df = None
+            logger.error(f"Making dataframe failed: {e}")
+        return loc_out, count_out, droplets_out, df
+
+
+def get_global_coordinates_from_well_coordinates(
+    napari_center: tuple, fluo, size
+):
+    *chip_index, y, x = napari_center
+    peaks = get_global_peaks(
+        fluo_data=fluo[int(chip_index)], center=(y, x), size=size
+    )
+    peaks_with_chip_index = [
+        add_chip_index_to_coords(p, chip_index) for p in peaks
+    ]
+    return peaks_with_chip_index
+
+
+def get_peaks_per_frame(
+    stack3d: np.ndarray,
+    dif_gauss_sigma: tuple = (1, 3),
+    op=get_peaks,
+    **kwargs,
+):
     """Counts particles in the timelapse"""
     image_ref = gdif(stack3d[0], dif_gauss_sigma)
     thr = 5 * image_ref.std()
-    return list(map(partial(get_peaks, threshold_abs=thr, **kwargs), stack3d))
+    return list(map(partial(op, threshold_abs=thr, **kwargs), stack3d))
 
 
-def get_peaks_timelapse_all_wells(stack, centers, size, plot=0):
+def get_peaks_timelapse_all_wells(
+    stack: np.ndarray, centers: list, size: int, plot: bool = 0
+):
     n_peaks = []
     for c in centers:
         print(".", end="")
-        well = crop(stack, c["center"], size)
+        well = cropNd(stack, c["center"], size)
         n_peaks.append(get_peaks_per_frame(well, plot=plot))
     return n_peaks
 
@@ -208,7 +413,6 @@ def main(
     poisson=True,
     **kwargs,
 ):
-
     """
     Reads the data and saves the counting table
     Parameters:

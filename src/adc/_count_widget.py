@@ -2,8 +2,6 @@ import json
 import logging
 import os
 from asyncio.log import logger
-from functools import partial, reduce
-from operator import add
 
 import dask.array as da
 import numpy as np
@@ -17,10 +15,12 @@ from qtpy.QtWidgets import QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 from adc import count
 
+from ._align_widget import DROPLETS_CSV_SUFFIX
+
+TABLE_NAME = "table.csv"
+
 COUNTS_LAYER_PROPS = dict(
-    name="Counts",
-    face_color="#ffffff00",
-    edge_color="#ff007f00",
+    name="Counts", size=300, face_color="#00000000", edge_color="#00880088"
 )
 COUNTS_JSON_SUFFIX = ".counts.json"
 
@@ -51,11 +51,14 @@ class CountCells(QWidget):
         self.container = Container(
             widgets=[self.select_TRITC, self.select_centers]
         )
+        self.out = []
+        self.counts_layer = None
+        self.detections_layer = None
 
         self.out_path = ""
         self.output_filename_widget = QLineEdit("path")
         self.btn = QPushButton("Localize!")
-        self.btn.clicked.connect(self._update_detections)
+        self.btn.clicked.connect(self.process_stack)
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.container.native)
         self.layout.addWidget(self.btn)
@@ -67,81 +70,79 @@ class CountCells(QWidget):
 
         self.setLayout(self.layout)
 
-    def _update_detections(self):
-        show_info("Loading the data")
-        with progress(desc="Loading data") as prb:
-            selected_layer = self.viewer.layers[
-                self.select_TRITC.current_choice
-            ]
-            logger.debug(f"selected_layer: {selected_layer}")
-            if selected_layer.multiscale:
-                ddata = selected_layer.data[0]
-                logger.debug(
-                    f"multiscale data: selecting highest resolution: {ddata}"
-                )
-            else:
-                ddata = selected_layer.data
-                logger.debug(f"not multiscale data: {ddata}")
-            if isinstance(ddata, da.Array):
-                ddata = ddata.compute()
-                logger.debug(f"compute dask array: {ddata}")
-            if ddata.ndim == 2:
-                ddata = np.reshape(ddata, (1, *ddata.shape))
-                logger.debug(f"reshaping: {ddata}")
-            else:
-                logger.debug("Finished data loading")
-            prb.close()
+    def process_stack(self):
+        self._pick_data_ref()
+        self._pick_centers()
 
-        centers = (
-            centers_layer := self.viewer.layers[
-                self.select_centers.current_choice
-            ]
-        ).data
-        logger.debug(f"selected centers: {centers}")
-        try:
-            logger.debug(f"creating dataframe with columns ['chip', 'y', 'x']")
-            self.df = pd.DataFrame(data=centers, columns=["chip", "y", "x"])
-            logger.debug(f"created dataframe {self.df}")
-        except ValueError as e:
-            logger.debug(f"problem with dataframe {e}")
-            show_error("Choose the right layer with actual localizations")
-            return
         show_info("Data loaded. Counting")
+
         self.viewer.window._status_bar._toggle_activity_dock(True)
-        peaks_raw = list(
-            map(
-                partial(
-                    count.get_global_coordinates_from_well_coordinates,
-                    fluo=ddata,
-                    size=self.radius,
-                ),
-                progress(centers, desc="Localizing:"),
+
+        self._update_detections()
+
+    def _pick_data_ref(self):
+        "Get dask array to know the shape etc"
+        self.selected_layer = self.viewer.layers[
+            self.select_TRITC.current_choice
+        ]
+        logger.debug(f"selected_layer: {self.selected_layer}")
+        if self.selected_layer.multiscale:
+            self.ddata_ref = self.selected_layer.data[0]
+            logger.debug(
+                f"multiscale data: selecting highest resolution: {self.ddata_ref}"
             )
-        )
-        show_info("Done localizing")
-        n_peaks_per_well = list(map(len, peaks_raw))
-        detections = reduce(add, peaks_raw)
+        else:
+            self.ddata_ref = self.selected_layer.data
+            logger.debug(f"not multiscale data: {self.ddata_ref}")
 
-        counts_layer = self.viewer.add_points(
-            centers_layer.data, text=n_peaks_per_well, **COUNTS_LAYER_PROPS
-        )
+    def _pick_centers(self):
+        self.centers_layer = self.viewer.layers[
+            self.select_centers.current_choice
+        ]
+        self.centers = self.centers_layer.data
+        logger.debug(f"selected centers: {len(self.centers)}")
 
-        detections_layer = self.viewer.add_points(
-            detections, **DETECTION_LAYER_PROPS
+    def _update_detections(self):
+        logger.debug("Creating output layers")
+        self.detections_layer = self.viewer.add_points(
+            data=[[0, 0, 0, 0]], **DETECTION_LAYER_PROPS
         )
+        self.counts_layer = self.viewer.add_points(
+            data=[[0, 0, 0, 0]], text=[], **COUNTS_LAYER_PROPS
+        )
+        logger.debug("Creating worker")
+        self.out = count.count_recursive(
+            data=self.ddata_ref,
+            positions=self.centers,
+            size=self.radius,
+            progress=progress,
+        )
+        self.save_results()
+
+    def save_results(self):
+        show_info("Done localizing ")
+
+        locs, n_peaks_per_well, drops, table_df = self.out
+
+        self.detections_layer.data = locs
+        self.counts_layer.data = drops
+        self.counts_layer.text = n_peaks_per_well
+
         try:
-            path = selected_layer.source.path
-            detections_layer.save(
+            path = self.selected_layer.source.path
+            if path is None:
+                try:
+                    path = self.selected_layer.metadata["path"]
+                except KeyError:
+                    show_error("Unable to find the path")
+                    return
+            self.detections_layer.save(
                 ppp := os.path.join(path, DETECTION_CSV_SUFFIX)
             )
-            with open(
-                pppc := os.path.join(path, COUNTS_JSON_SUFFIX), "w"
-            ) as fp:
-                json.dump(n_peaks_per_well, fp, indent=2)
         except Exception as e:
             logger.debug(f"Unable to save detections inside the zarr: {e}")
             logger.debug(f"Saving in a separate file")
-            detections_layer.save(
+            self.detections_layer.save(
                 ppp := os.path.join(path + DETECTION_CSV_SUFFIX)
             )
         logger.info(f"Saving detections into {ppp}")
@@ -158,6 +159,27 @@ class CountCells(QWidget):
             with open(ppp := path + COUNTS_JSON_SUFFIX, "w") as fp:
                 json.dump(n_peaks_per_well, fp, indent=2)
         logger.info(f"Saving counts into {ppp}")
+
+        try:
+            ppp = os.path.join(path, DROPLETS_CSV_SUFFIX)
+            droplets_df = pd.DataFrame(
+                data=drops, columns=[f"axis-{i}" for i in range(len(drops[0]))]
+            )
+            droplets_df.to_csv(ppp)
+        except Exception as e:
+            logger.debug(f"Unable to save droplets inside the zarr: {e}")
+            logger.debug(f"Saving in a separate file")
+
+            droplets_df.to_csv(ppp := path + DROPLETS_CSV_SUFFIX)
+        logger.info(f"Saving counts into {ppp}")
+
+        try:
+            ppp = os.path.join(os.path.dirname(path), TABLE_NAME)
+
+            table_df.to_csv(ppp)
+            logger.info(f"Saving table into {ppp}")
+        except Exception as e:
+            logger.error(f"Unable to save table into {ppp}: {e}")
 
     def show_counts(self, counts):
         self.counts = counts

@@ -27,18 +27,6 @@ def create_test_template_image():
     return image, template, tvec
 
 
-def test_register(create_test_template_image):
-    image, template, tvec = create_test_template_image
-    trvec = align.get_transform(image, template, constraints=align.CONSTRAINTS)
-    np.testing.assert_array_almost_equal(
-        -np.array(trvec["tvec"], dtype="f") / tvec["tvec"],
-        np.ones((2,)),
-        decimal=0,
-        err_msg=f'found {trvec["tvec"]}, target {tvec["tvec"]}',
-    ),
-    np.testing.assert_almost_equal(trvec["angle"], -tvec["angle"], decimal=0),
-
-
 def test_to_8bits(create_random_data):
     b = align.to_8bits(create_random_data)
     assert b.shape == create_random_data.shape

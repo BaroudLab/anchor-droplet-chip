@@ -13,6 +13,7 @@ from ._count_widget import (
     COUNTS_LAYER_PROPS,
     DETECTION_CSV_SUFFIX,
     DETECTION_LAYER_PROPS,
+    TABLE_NAME,
 )
 
 logger = logging.getLogger(__name__)
@@ -222,7 +223,7 @@ def read_zarr(path):
             table = pd.read_csv(det_path, index_col=0)
             output.append(
                 (
-                    table[["axis-0", "axis-1", "axis-2"]].values,
+                    table.values,
                     {"metadata": {"path": det_path}, **DETECTION_LAYER_PROPS},
                     "points",
                 )
@@ -232,9 +233,9 @@ def read_zarr(path):
     else:
         print(f"{det_path} doesn't exists")
 
-    if os.path.exists(det_path := os.path.join(path, DROPLETS_CSV_SUFFIX)):
+    if os.path.exists(droplet_path := os.path.join(path, DROPLETS_CSV_SUFFIX)):
         try:
-            table = pd.read_csv(det_path, index_col=0)
+            droplets_df = pd.read_csv(droplet_path, index_col=0)
             if os.path.exists(
                 count_path := os.path.join(path, COUNTS_JSON_SUFFIX)
             ):
@@ -244,7 +245,7 @@ def read_zarr(path):
                 counts = None
             output.append(
                 (
-                    table[["axis-0", "axis-1", "axis-2"]].values,
+                    droplets_df.values,
                     {
                         "metadata": {"path": det_path},
                         "text": counts,
@@ -258,6 +259,19 @@ def read_zarr(path):
     else:
         print(f"{det_path} doesn't exists")
 
+    if not os.path.exists(
+        ppp := os.path.join(os.path.dirname(path), TABLE_NAME)
+    ):
+        from .count import make_table
+
+        try:
+            df = make_table(droplets_out=droplets_df.values, counts=counts)
+            df.to_csv(ppp)
+            print(f"Saved table to {ppp}")
+        except Exception as e:
+            print(f"Unable to create table")
+    else:
+        print("Table found")
     return output
 
 
