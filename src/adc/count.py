@@ -198,7 +198,7 @@ def count_recursive(
 
 def make_table(droplets_out, counts):
     droplets_out = np.array(droplets_out)
-    counts = np.array(counts)
+    counts = np.array(counts).reshape((len(counts), 1))
     return pd.DataFrame(
         data=np.hstack([droplets_out, counts]),
         columns=[f"index-{i}" for i in range(len(droplets_out[0][:-2]))]
