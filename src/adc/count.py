@@ -324,6 +324,8 @@ def count_recursive(
                 index=new_ind,
                 localizer=localizer,
                 counting_function=counting_function,
+                crop_op=crop_op,
+                table_function=table_function,
             )
             tables.append(df)
             locs += bac_locs
