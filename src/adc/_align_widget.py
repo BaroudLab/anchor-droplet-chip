@@ -7,7 +7,7 @@ from multiprocessing import Pool
 import dask.array as da
 import numpy as np
 from magicgui.widgets import Container, create_widget
-from napari import Viewer
+from napari import Viewer, layers
 from napari.layers import Image, Layer, Points
 from qtpy.QtWidgets import QPushButton, QVBoxLayout, QWidget
 
@@ -23,6 +23,13 @@ DROPLETS_LAYER_PROPS = dict(
     edge_color="#00880088",
 )
 DROPLETS_CSV_SUFFIX = ".droplets.csv"
+
+CONSTRAINTS = {
+    "scale": [1, 0.1],
+    "tx": [0, 150],
+    "ty": [0, 150],
+    "angle": [0, 10],
+}
 
 
 class DetectWells(QWidget):
@@ -68,38 +75,19 @@ class DetectWells(QWidget):
 
         assert isinstance(path := get_path(data_layer), str)
         logger.debug(f"data path: {path}")
-        if data_layer.multiscale:
-            n_scales = len(data_layer.data)
-            assert (
-                n_scales >= 2
-            ), "Weird multiscale, looking for 1/8 scale, or 1/4 at least"
-            if isinstance(data_layer.data[n_scales - 1], da.Array):
-                try:
-                    data = data_layer.data[3].compute()
-                except IndexError:
-                    data = data_layer.data[2][..., ::2, ::2].compute()
-            elif isinstance(data_layer.data[0], np.ndarray):
-                try:
-                    data = data_layer.data[3]
-                except IndexError:
-                    data = data_layer.data[2][..., ::2, ::2]
-        else:
-            data = data_layer.data[..., ::8, ::8]
-            if isinstance(data, da.Array):
-                data = data.compute()
 
         temp = self.viewer.layers[self.select_template.current_choice].data
         centers = self.viewer.layers[self.select_centers.current_choice].data
         ccenters = centers - np.array(temp.shape) / 2.0
 
-        if data.ndim == 2:
-            data = (data,)
+        data = get_data(data_layer)
+
+        locate_fun = partial(locate_wells, template=temp, ccenters=ccenters)
+
         p = Pool(cores := len(data))
         logger.info(f"Processing in parallel with {cores} cores")
         try:
-            centers16 = p.map(
-                partial(locate_wells, template=temp, ccenters=ccenters), data
-            )
+            centers16 = p.map(locate_fun, data)
             self.aligned_centers = np.concatenate(
                 [add_new_dim(c * 8, i) for i, c in enumerate(centers16)]
             )
@@ -119,6 +107,7 @@ class DetectWells(QWidget):
             logger.error(e)
         finally:
             p.close()
+            return
 
         try:
             path = data_layer.source.path
@@ -135,6 +124,36 @@ class DetectWells(QWidget):
         self.select_image.reset_choices(event)
         self.select_template.reset_choices(event)
         self.select_centers.reset_choices(event)
+
+
+def get_data(data_layer: layers.Image):
+    """
+    Looks for 1/8 scaled array from multiscale dataset, loads the data from zarr into memory,
+    adds 3rd dimension if data is 2D
+    """
+    if data_layer.multiscale:
+        n_scales = len(data_layer.data)
+        assert (
+            n_scales >= 2
+        ), "Weird multiscale, looking for 1/8 scale, or 1/4 at least"
+        if isinstance(data_layer.data[n_scales - 1], da.Array):
+            try:
+                data = data_layer.data[3].compute()
+            except IndexError:
+                data = data_layer.data[2][..., ::2, ::2].compute()
+        elif isinstance(data_layer.data[0], np.ndarray):
+            try:
+                data = data_layer.data[3]
+            except IndexError:
+                data = data_layer.data[2][..., ::2, ::2]
+    else:
+        data = data_layer.data[..., ::8, ::8]
+        if isinstance(data, da.Array):
+            data = data.compute()
+
+    if data.ndim == 2:
+        data = (data,)
+    return data
 
 
 def get_path(data_layer):
@@ -182,18 +201,31 @@ def move_centers(centers, tvec: dict, figure_size):
     )
 
 
-def locate_wells(bf, template, ccenters):
+def locate_wells(
+    bf: np.ndarray,
+    template: np.ndarray,
+    ccenters: list,
+    constraints=CONSTRAINTS,
+    pad_ratio=1.3,
+):
+    """
+    Compares bf image with template to get rigit transform  zoom, rotation and shift.
+    Then moves the ccenters (droplet coordinates of the template) accordingly
+    to get them on top of the bf droplets.
+    Parameters:
+    -----------
+    bf: np.array 2D
+    template: np.array 2D
+    ccenters: list [[y0,x0],...]
+        centers - are the droplet centers,
+        ccenters mean with the zero coordinates in the center of the image
+    """
     try:
         tvec = align.get_transform(
-            image=bf, 
+            image=bf,
             template=template,
-            constraints={
-                "scale": [1, 0.1],
-                "tx": [0, 150],
-                "ty": [0, 150],
-                "angle": [0, 10],
-            },
-            pad_ratio=1.3
+            constraints=constraints,
+            pad_ratio=pad_ratio,
         )
         logger.info(tvec)
         return move_centers(ccenters, tvec, bf.shape)
