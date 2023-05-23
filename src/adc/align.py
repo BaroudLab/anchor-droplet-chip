@@ -5,12 +5,13 @@ from os import PathLike
 from typing import Tuple
 
 import fire
-import imreg_dft as reg
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage.color import label2rgb
 from skimage.measure import label
 from tifffile import imread, imwrite
+
+import imreg_dft as reg
 
 try:
     __version__ = version("anchor-droplet-chip")
@@ -56,6 +57,7 @@ CONSTRAINTS = {  # [mean, std]
 
 class PaddingError(Exception):
     pass
+
 
 def align_stack(
     data: np.ndarray,
@@ -137,7 +139,7 @@ def align_stack(
             mask2.shape,
         )
     except ValueError as e:
-        print("stack_mask_scale: ", stack_mask_scale)
+        logger.debug(f"stack_mask_scale: {stack_mask_scale}")
         logger.error(e.args)
         raise e
 
@@ -177,20 +179,20 @@ def get_transform(
     """
     Pads image and template, registers and returns tvec
     """
-    print(f"padding to image.shape {image.shape} * pad_ratio {pad_ratio}")
+    # logger.debug(f"padding to image.shape {image.shape} * pad_ratio {pad_ratio}")
     s = increase(image.shape, pad_ratio)
-    print(f"new increased shape: {s}")
+    # logger.debug(f"new increased shape: {s}")
 
-    print(f"padding template: {template.shape}")
+    # logger.debug(f"padding template: {template.shape}")
     padded_template = pad(template, s)
-    print(f"padded template: {padded_template.shape}")
+    # logger.debug(f"padded template: {padded_template.shape}")
 
-    print(f"padding image: {image.shape}")
+    # logger.debug(f"padding image: {image.shape}")
     padded_image = pad(image, s)
-    print(f"padded image: {padded_image.shape}")
-    
+    # logger.debug(f"padded image: {padded_image.shape}")
+
     tvec = register(padded_image, padded_template, constraints)
-    print(f"Found transform: {tvec}")
+    # logger.debug(f"Found transform: {tvec}")
     if plot:
         aligned_bf = unpad(tvec["timg"], template.shape)
         plt.figure(figsize=figsize, dpi=dpi)
@@ -214,12 +216,14 @@ def pad(image: np.ndarray, to_shape: tuple = None, padding: tuple = None):
     """
     Pad the data to desired shape
     """
-    print(f"padding image {image.shape} to shape {to_shape}")
+    logger.debug(f"padding image {image.shape} to shape {to_shape}")
     if padding is None:
         try:
             padding = calculate_padding(image.shape, to_shape)
         except PaddingError as e:
-            new_to_shape = tuple(max(i,j) for i, j in zip(image.shape, to_shape))
+            new_to_shape = tuple(
+                max(i, j) for i, j in zip(image.shape, to_shape)
+            )
             logger.error(f"Error padding {e.args} try to_shape {new_to_shape}")
 
     try:
@@ -259,8 +263,10 @@ def calculate_padding(shape1: tuple, shape2: tuple):
     2D tuple of indices
     """
     dif = np.array(shape2) - np.array(shape1)
-    if not all(dif >= 0): 
-        raise PaddingError(f"Shape2 {shape2} must be bigger than shape1 {shape1}")
+    if not all(dif >= 0):
+        raise PaddingError(
+            f"Shape2 {shape2} must be bigger than shape1 {shape1}"
+        )
     mid = dif // 2
     rest = dif - mid
     return (mid[0], rest[0]), (mid[1], rest[1])
@@ -284,7 +290,7 @@ def transform(image, tvec):
     """
     apply transform
     """
-    print(f"transform {image.shape}")
+    logger.debug(f"transform {image.shape}")
     fluo = reg.transform_img_dict(image, tvec)
     return fluo.astype("uint")
 

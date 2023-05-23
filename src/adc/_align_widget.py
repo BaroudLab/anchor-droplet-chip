@@ -2,14 +2,15 @@ import logging
 import os
 from asyncio.log import logger
 from functools import partial
-from multiprocessing import Pool
 
 import dask.array as da
 import numpy as np
 from magicgui.widgets import Container, create_widget
 from napari import Viewer, layers
 from napari.layers import Image, Layer, Points
+from napari.utils import progress
 from qtpy.QtWidgets import QPushButton, QVBoxLayout, QWidget
+from tqdm import tqdm
 
 from adc import _sample_data, align
 
@@ -80,34 +81,23 @@ class DetectWells(QWidget):
         centers = self.viewer.layers[self.select_centers.current_choice].data
         ccenters = centers - np.array(temp.shape) / 2.0
 
-        data = get_data(data_layer)
+        data, downscale = get_data(data_layer)
 
-        locate_fun = partial(locate_wells, template=temp, ccenters=ccenters)
+        locate_fun = partial(locate_wells, template=temp, positions=ccenters)
 
-        p = Pool(cores := len(data))
-        logger.info(f"Processing in parallel with {cores} cores")
-        try:
-            centers16 = p.map(locate_fun, data)
-            self.aligned_centers = np.concatenate(
-                [add_new_dim(c * 8, i) for i, c in enumerate(centers16)]
-            )
+        self.positions, self.tvecs = align_recursive(
+            data=data,
+            template=temp,
+            positions=ccenters,
+            aligning_function=locate_fun,
+            upscale=downscale,
+            progress=progress,
+        )
 
-            droplets_layer = show_droplet_layer(
-                self.viewer, self.aligned_centers
-            )
+        droplets_layer = show_droplet_layer(self.viewer, self.positions)
 
-            self.viewer.layers[
-                self.select_centers.current_choice
-            ].visible = False
-            self.viewer.layers[
-                self.select_template.current_choice
-            ].visible = False
-
-        except Exception as e:
-            logger.error(e)
-        finally:
-            p.close()
-            return
+        self.viewer.layers[self.select_centers.current_choice].visible = False
+        self.viewer.layers[self.select_template.current_choice].visible = False
 
         try:
             path = data_layer.source.path
@@ -126,10 +116,104 @@ class DetectWells(QWidget):
         self.select_centers.reset_choices(event)
 
 
-def get_data(data_layer: layers.Image):
+def locate_wells(
+    data: np.ndarray,
+    template: np.ndarray,
+    positions: list,
+    pad_ratio=1.3,
+    constraints=CONSTRAINTS,
+):
     """
-    Looks for 1/8 scaled array from multiscale dataset, loads the data from zarr into memory,
-    adds 3rd dimension if data is 2D
+    Compares bf image with template to get rigit transform  zoom, rotation and shift.
+    Then moves the positions (droplet coordinates of the template) accordingly
+    to get them on top of the bf droplets.
+    Parameters:
+    -----------
+    bf: np.array 2D
+    template: np.array 2D
+    positions: list [[y0,x0],...]
+        centers - are the droplet centprinters,
+        positions mean with the zero coordinates in the center of the image
+    """
+    try:
+        tvec = align.get_transform(
+            image=data,
+            template=template,
+            constraints=constraints,
+            pad_ratio=pad_ratio,
+        )
+        logger.info(tvec)
+        return move_centers(positions, tvec, data.shape), tvec
+    except Exception as e:
+        logger.error("Error locating wells: ", e)
+        raise e
+
+
+def align_recursive(
+    data: da.Array,
+    template: np.ndarray,
+    positions: list,
+    index: list = [],
+    progress=tqdm,
+    aligning_function=locate_wells,
+    upscale=8,
+) -> list:
+    """
+    Recurcively aligning multi-dimentional arrays with the template
+    by the chunks of 2d arrays.
+    Parameters:
+    -----------
+    data: dask.array n-dimensional
+    template: numpy array 2D
+    positions: list 2D [[y0,x0], ...]
+    upscale: int , default 8
+        the data and template are normally downscaled 8 times to save time,
+        so the coordinates should be upscaled the same to match with the image in the viewer.
+    Return:
+    --------
+    positions, tvecs:
+
+        positions: list of positions with the of the size (m,n) where
+        m - is the total number of translated postitions
+        n - number of dimesions of initial data.
+        tvecs: list of tranform vectors (dicts)
+    """
+    logger.debug(f"align {data}")
+    if data.ndim > 2:
+        pos = []
+        tvecs = []
+        for i, d in enumerate(progress(data)):
+            new_ind = index + [i]
+            logger.debug(f"index {new_ind}")
+            aligned_positions, tvec = align_recursive(
+                data=d,
+                template=template,
+                positions=positions,
+                index=new_ind,
+                progress=progress,
+                aligning_function=aligning_function,
+            )
+            pos += aligned_positions
+            tvecs.append(tvec)
+        return pos, tvecs
+    else:
+        data = data.compute() if isinstance(data, da.Array) else data
+        coords, tvec = aligning_function(
+            data=data,
+            template=template,
+            positions=positions,
+        )
+        logger.debug(f"Finished aligning index {index}, tvec: {tvec}")
+        pos = [index + list(o) for o in coords * upscale]
+        logger.debug(f"Added index {index} to positions")
+
+        tvec["timg"] = []
+        return pos, tvec
+
+
+def get_data(data_layer: layers.Image, downscale=8):
+    """
+    Looks for 1/8 scaled array from multiscale dataset
     """
     if data_layer.multiscale:
         n_scales = len(data_layer.data)
@@ -138,9 +222,9 @@ def get_data(data_layer: layers.Image):
         ), "Weird multiscale, looking for 1/8 scale, or 1/4 at least"
         if isinstance(data_layer.data[n_scales - 1], da.Array):
             try:
-                data = data_layer.data[3].compute()
+                data = data_layer.data[3]
             except IndexError:
-                data = data_layer.data[2][..., ::2, ::2].compute()
+                data = data_layer.data[2][..., ::2, ::2]
         elif isinstance(data_layer.data[0], np.ndarray):
             try:
                 data = data_layer.data[3]
@@ -148,12 +232,8 @@ def get_data(data_layer: layers.Image):
                 data = data_layer.data[2][..., ::2, ::2]
     else:
         data = data_layer.data[..., ::8, ::8]
-        if isinstance(data, da.Array):
-            data = data.compute()
 
-    if data.ndim == 2:
-        data = (data,)
-    return data
+    return data, downscale
 
 
 def get_path(data_layer):
@@ -191,6 +271,10 @@ def trans(vec: np.ndarray, tr_vec: np.ndarray):
 
 
 def move_centers(centers, tvec: dict, figure_size):
+    """
+    applies tvec and moves the zero coodinates
+    from the center to the edge of the figure.
+    """
     return (
         rot(
             centers / tvec["scale"],
@@ -199,36 +283,3 @@ def move_centers(centers, tvec: dict, figure_size):
         - tvec["tvec"]
         + np.array(figure_size) / 2.0
     )
-
-
-def locate_wells(
-    bf: np.ndarray,
-    template: np.ndarray,
-    ccenters: list,
-    constraints=CONSTRAINTS,
-    pad_ratio=1.3,
-):
-    """
-    Compares bf image with template to get rigit transform  zoom, rotation and shift.
-    Then moves the ccenters (droplet coordinates of the template) accordingly
-    to get them on top of the bf droplets.
-    Parameters:
-    -----------
-    bf: np.array 2D
-    template: np.array 2D
-    ccenters: list [[y0,x0],...]
-        centers - are the droplet centers,
-        ccenters mean with the zero coordinates in the center of the image
-    """
-    try:
-        tvec = align.get_transform(
-            image=bf,
-            template=template,
-            constraints=constraints,
-            pad_ratio=pad_ratio,
-        )
-        logger.info(tvec)
-        return move_centers(ccenters, tvec, bf.shape)
-    except Exception as e:
-        logger.error("Error locating wells: ", e)
-        return ccenters
