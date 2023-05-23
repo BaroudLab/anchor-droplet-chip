@@ -260,17 +260,21 @@ def count2d(
         logger.debug(f"loaded {data.shape}")
 
     logger.debug("Start counting")
-    peaks = np.vstack(
-        positions_per_droplet := [
-            localizer(
-                fluo_data=data, center=center, size=size, crop_op=crop_op
-            )
-            for center in positions
-        ]
-    )
-    counts = list(map(len, positions_per_droplet))
+    try:
+        peaks = np.vstack(
+            positions_per_droplet := [
+                localizer(
+                    fluo_data=data, center=center, size=size, crop_op=crop_op
+                )
+                for center in positions
+            ]
+        )
 
-    return peaks, counts
+        counts = list(map(len, positions_per_droplet))
+        return peaks, counts
+    except ValueError:
+        logger.warning("Empty droplets")
+        return [], [0] * len(positions)
 
 
 def count_recursive(
