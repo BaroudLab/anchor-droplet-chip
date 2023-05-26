@@ -80,5 +80,48 @@ def test_recursive():
     assert isinstance(df, pd.DataFrame)
 
 
+@pytest.fixture
+def make_data_and_positions(size=(5, 4, 3, 32, 32), pos=[[10, 10], [10, 20]]):
+    data = np.zeros(size)
+    pos = np.array(pos)
+    ppp = []
+
+    def populate(data, pos, ind=[]):
+        if data.ndim > pos.shape[-1]:
+            for i, d in enumerate(data):
+                new_ind = ind + [i]
+                return populate(d, pos, new_ind)
+        else:
+            for p in pos:
+                ppp.append(np.concatenate([ind, p]))
+        return np.array(ppp)
+
+    pos_out = populate(data, pos)
+    return data, pos_out
+
+
+def test_recursive_all_droplets(make_data_and_positions):
+    n_per_well = 5
+    data, pos = make_data_and_positions
+    print("test pos:", pos)
+
+    size = data.size
+
+    def localizer(fluo_data, center, size, **kwargs):
+        return [[0, 0]] * n_per_well
+
+    loc_result, count_result, droplets_out, df = count.count_recursive(
+        data=data,
+        positions=pos,
+        size=5,
+        localizer=localizer,
+    )
+    assert len(loc_result) == size * n_per_well
+    assert len(count_result) == size
+    assert len(droplets_out) == size
+    assert len(df) == size
+    assert isinstance(df, pd.DataFrame)
+
+
 if __name__ == "__main__":
     test_count()

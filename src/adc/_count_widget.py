@@ -32,8 +32,8 @@ DETECTION_LAYER_PROPS = dict(
 )
 DETECTION_CSV_SUFFIX = ".detections.csv"
 
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class CountCells(QWidget):
@@ -105,10 +105,12 @@ class CountCells(QWidget):
     def _update_detections(self):
         logger.debug("Creating output layers")
         self.detections_layer = self.viewer.add_points(
-            data=[[0, 0, 0, 0]], **DETECTION_LAYER_PROPS
+            data=[[0] * len(self.ddata_ref.shape)], **DETECTION_LAYER_PROPS
         )
         self.counts_layer = self.viewer.add_points(
-            data=[[0, 0, 0, 0]], text=[], **COUNTS_LAYER_PROPS
+            data=[[0] * len(self.ddata_ref.shape)],
+            text=[],
+            **COUNTS_LAYER_PROPS,
         )
         logger.debug("Creating worker")
         self.out = count.count_recursive(

@@ -108,10 +108,12 @@ def crop2d(img: np.ndarray, center: tuple, size: int):
     """
     2D crop
     """
+    logger.debug(f"crop2d: input {img.shape}, center {center}, size: {size}")
     im = img[
         int(center[0]) - size // 2 : int(center[0]) + size - size // 2,
         int(center[1]) - size // 2 : int(center[1]) + size - size // 2,
     ]
+    logger.debug(f"crop2d: result: {im.shape}")
     return im
 
 
@@ -182,11 +184,12 @@ def get_peaks(
     Returns:
     list of 2d coordinates
     """
+    logger.debug(f"get_peaks from crop_2d {crop_2d.shape}")
     image_max = gdif_op(crop_2d, dif_gauss_sigma)
     peaks = peak_op(
         image_max, min_distance=min_distance, threshold_abs=threshold_abs
     )
-    # logger.debug(f"found {len(peaks)} cells")
+    logger.debug(f"get_peaks found {len(peaks)} cells")
     if plot:
         if bf_crop is None:
             fig, ax = plt.subplots(1, 2, sharey=True)
@@ -255,6 +258,7 @@ def count2d(
     returns 2d array of positions and list of counts per position
     """
     logger.debug(f"count 2d {data.shape}, {len(positions)} positions")
+    print(positions)
     if isinstance(data, da.Array):
         data = loader(data)
         logger.debug(f"loaded {data.shape}")
@@ -272,9 +276,11 @@ def count2d(
 
         counts = list(map(len, positions_per_droplet))
         return peaks, counts
-    except ValueError:
-        logger.warning("Empty droplets")
-        return [], [0] * len(positions)
+    except Exception as e:
+        logger.error("Problem in count2d")
+        print("positions_per_droplet", positions_per_droplet)
+        print("positions", positions)
+        return [], []
 
 
 def count_recursive(
@@ -312,10 +318,11 @@ def count_recursive(
         for i, d in enumerate(progress(data)):
             new_ind = index + [i]
             logger.debug(f"index {new_ind}")
-            if positions.shape[-1] < len(data.shape):
+            if positions.shape[-1] <= len(data.shape):
                 use_coords = positions
             else:
                 use_coords = positions[positions[:, 0] == i]
+            print(use_coords)
             (
                 bac_locs,
                 per_droplet_counts,
