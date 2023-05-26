@@ -107,6 +107,7 @@ class DetectWells(QWidget):
             droplets_layer = show_droplet_layer(
                 self.viewer, self.aligned_centers
             )
+            droplets_layer.mouse_double_click_callbacks.append(callback)
 
             self.viewer.layers[
                 self.select_centers.current_choice
@@ -136,6 +137,15 @@ class DetectWells(QWidget):
         self.select_template.reset_choices(event)
         self.select_centers.reset_choices(event)
 
+def callback(layer, event):
+    print(layer.name, event)
+    pos = event.position
+    data = layer.data.copy()
+    diff = data - pos[1:]
+    chip, y, x = [diff[:,i] for i in range(3)]
+    dist = y ** 2 + x ** 2 
+    closest = np.argmin(dist, axis=0)
+    print(closest)
 
 def get_path(data_layer):
     if (path := data_layer.source.path) is not None:
