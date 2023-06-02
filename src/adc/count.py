@@ -24,7 +24,7 @@ except PackageNotFoundError:
     __version__ = "Unknown"
 
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s %(levelname)s : %(message)s"
+    level=logging.INFO, format="%(asctime)s %(levelname)s : %(message)s"
 )
 logger = logging.getLogger("adc.count")
 
@@ -135,13 +135,17 @@ def add_chip_index_to_coords(coords: tuple, chip_index):
     return (chip_index, *coords)
 
 
-def make_table(droplets_out: list, counts: list) -> pd.DataFrame:
+def make_table(
+    coordinates: list,
+    data: list,
+    columns=("frame", "chip", "y", "x", "n_cells", "label"),
+) -> pd.DataFrame:
     """
     Merging horizontally the provided tables and adding labels
     Parameters:
     -----------
-    droplets_out: list[[index-0, index-1, ... index-n, y, x]]
-    counts: list(n1,n2,...n[len(droplets_out)]) -
+    coordinates: list[[index-0, index-1, ... index-n, y, x]]
+    data: list(n1,n2,...n[len(droplets_out)]) -
         list of counts of the same lenght as droplets
     Return:
     -------
@@ -149,13 +153,12 @@ def make_table(droplets_out: list, counts: list) -> pd.DataFrame:
         [index-0, index-1, ..., y, x, n_cells, label],
         where label being automatic index starting with 1 and ending with len(counts)
     """
-    droplets_out = np.array(droplets_out)
-    counts = np.array(counts).reshape((len(counts), 1))
+    droplets_out = np.array(coordinates)
+    counts = np.array(data).reshape((len(data), 1))
     labels = (np.arange(len(counts)) + 1).reshape((len(counts), 1))
     return pd.DataFrame(
         data=np.hstack([droplets_out, counts, labels]),
-        columns=[f"index-{i}" for i in range(len(droplets_out[0][:-2]))]
-        + ["y", "x", "n_cells", "label"],
+        columns=columns,
     )
 
 
@@ -252,7 +255,6 @@ def count2d(
     localizer=get_global_peaks,
     loader=load_mem,
     crop_op=crop2d,
-    **table_args,
 ):
     """
     returns 2d array of positions and list of counts per position
@@ -318,10 +320,10 @@ def count_recursive(
         for i, d in enumerate(progress(data)):
             new_ind = index + [i]
             logger.debug(f"index {new_ind}")
-            if positions.shape[-1] <= len(data.shape):
+            if positions.shape[-1] <= d.ndim:
                 use_coords = positions
             else:
-                use_coords = positions[positions[:, 0] == i]
+                use_coords = positions[positions[:, 0] == i][:, -d.ndim :]
             print(use_coords)
             (
                 bac_locs,
