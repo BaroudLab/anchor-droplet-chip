@@ -2,7 +2,6 @@
 Measure intensity and background with `get_intensity_of_single_crop`
 """
 
-import functools
 import logging
 from typing import Tuple
 
@@ -12,30 +11,9 @@ import pandas as pd
 from tqdm import tqdm
 
 from .count import crop2d, load_mem, make_table
+from .tools.log_decorator import log
 
 logger = logging.getLogger("adc.count")
-
-
-def log(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        args_repr = [repr(a) for a in args]
-        kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]
-        signature = ", ".join(args_repr + kwargs_repr)
-        logger.debug(
-            f"function `{func.__name__}` called with args `{signature}`"
-        )
-        try:
-            result = func(*args, **kwargs)
-            logger.debug(f"function `{func.__name__}` returns `{result}`")
-            return result
-        except Exception as e:
-            logger.exception(
-                f"Exception raised in `{func.__name__}`. exception: `{str(e)}`"
-            )
-            raise e
-
-    return wrapper
 
 
 @log
@@ -60,9 +38,6 @@ def bg_op(
     """
     Measures intensity of the edge pixels with `intensity_op`
     """
-    logger.debug(
-        f"bg_op: data {data.shape}, outline+thickness {outline_thickness}, intensity_ops {intensity_ops}"
-    )
     t = outline_thickness
     values = np.concatenate(
         (
@@ -72,9 +47,7 @@ def bg_op(
             np.ravel(data[:t, t:]),
         )
     )
-    logger.debug(f"outline produces {len(values)} values")
     bg = [op(values) for op in intensity_ops]
-    logger.debug(f"returning {bg}")
     return tuple(bg)
 
 
@@ -173,7 +146,6 @@ def measure_recursive(
     --------
     (loc_result, count_result:list, droplets_out: list, df: pd.DataFrame)
     """
-    logger.debug(f"count {data}")
     if data.ndim > 2:
         pos = []
         tables = []
@@ -184,7 +156,6 @@ def measure_recursive(
                 use_coords = positions
             else:
                 use_coords = positions[positions[:, 0] == i][:, -d.ndim :]
-            # print(use_coords)
             (
                 coords_droplets,
                 df,
@@ -214,8 +185,7 @@ def measure_recursive(
             f"Finished measuring index {index}: results {results.shape} "
         )
 
-        droplets_out = [index + list(o) for o in coords]
-        logger.debug(f"Added index {index} to {len(coords)} positions")
+        droplets_out = add_index_to_coords(index=index, coords=coords)
 
         try:
             labels = (np.arange(len(results)) + 1).reshape((len(results), 1))
@@ -237,3 +207,8 @@ def measure_recursive(
             logger.error(f"Making dataframe failed: {e}")
             raise (e)
         return droplets_out, df
+
+
+@log
+def add_index_to_coords(index, coords):
+    return [index + list(o) for o in coords]
