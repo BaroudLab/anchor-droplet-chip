@@ -14,8 +14,11 @@ from tqdm import tqdm
 
 from adc import _sample_data, align
 
+from .tools.log_decorator import log
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
 
 DROPLETS_LAYER_PROPS = dict(
     name="Droplets",
@@ -77,9 +80,15 @@ class DetectWells(QWidget):
         assert isinstance(path := get_path(data_layer), str)
         logger.debug(f"data path: {path}")
 
-        temp = self.viewer.layers[self.select_template.current_choice].data
-        centers = self.viewer.layers[self.select_centers.current_choice].data
-        ccenters = centers - np.array(temp.shape) / 2.0
+        temp_layer = self.viewer.layers[self.select_template.current_choice]
+        temp = temp_layer.data
+        temp_scale = temp_layer.scale[0]
+        centers_layer = self.viewer.layers[self.select_centers.current_choice]
+        centers = centers_layer.data
+        centers_scale = centers_layer.scale[0]
+        ccenters = (
+            centers * centers_scale / temp_scale - np.array(temp.shape) / 2.0
+        )
 
         data, downscale = get_data(data_layer)
 
@@ -116,6 +125,7 @@ class DetectWells(QWidget):
         self.select_centers.reset_choices(event)
 
 
+@log
 def locate_wells(
     data: np.ndarray,
     template: np.ndarray,
@@ -132,7 +142,7 @@ def locate_wells(
     bf: np.array 2D
     template: np.array 2D
     positions: list [[y0,x0],...]
-        centers - are the droplet centprinters,
+        centers - are the droplet centers,
         positions mean with the zero coordinates in the center of the image
     """
     try:
@@ -149,6 +159,7 @@ def locate_wells(
         raise e
 
 
+@log
 def align_recursive(
     data: da.Array,
     template: np.ndarray,
@@ -199,9 +210,7 @@ def align_recursive(
     else:
         data = data.compute() if isinstance(data, da.Array) else data
         coords, tvec = aligning_function(
-            data=data,
-            template=template,
-            positions=positions,
+            data=data, template=template, positions=positions
         )
         logger.debug(f"Finished aligning index {index}, tvec: {tvec}")
         pos = [index + list(o) for o in coords * upscale]
@@ -211,6 +220,7 @@ def align_recursive(
         return pos, tvec
 
 
+@log
 def get_data(data_layer: layers.Image, downscale=8):
     """
     Looks for 1/8 scaled array from multiscale dataset
@@ -236,6 +246,7 @@ def get_data(data_layer: layers.Image, downscale=8):
     return data, downscale
 
 
+@log
 def get_path(data_layer):
     if (path := data_layer.source.path) is not None:
         return path
@@ -245,16 +256,19 @@ def get_path(data_layer):
         raise ValueError("Unable to get path of the dataset")
 
 
+@log
 def show_droplet_layer(viewer, data):
     return viewer.add_points(data, **DROPLETS_LAYER_PROPS)
 
 
+@log
 def add_new_dim(centers, value):
     return np.concatenate(
         (np.ones((len(centers), 1)) * value, centers), axis=1
     )
 
 
+@log
 def rot(vec: np.ndarray, angle_deg: float, canvas_shape=(0, 0)):
     theta = angle_deg / 180.0 * np.pi
     pivot = np.array(canvas_shape) / 2.0
@@ -266,11 +280,13 @@ def rot(vec: np.ndarray, angle_deg: float, canvas_shape=(0, 0)):
     return np.dot(vec - pivot, mat) + pivot
 
 
+@log
 def trans(vec: np.ndarray, tr_vec: np.ndarray):
     return vec + tr_vec
 
 
-def move_centers(centers, tvec: dict, figure_size):
+@log
+def move_centers(centers, tvec: dict, figure_size: tuple):
     """
     applies tvec and moves the zero coodinates
     from the center to the edge of the figure.
