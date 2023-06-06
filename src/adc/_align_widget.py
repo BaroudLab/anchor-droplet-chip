@@ -17,7 +17,6 @@ from adc import _sample_data, align
 from .tools.log_decorator import log
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 DROPLETS_LAYER_PROPS = dict(
