@@ -32,6 +32,8 @@ DETECTION_LAYER_PROPS = dict(
 )
 DETECTION_CSV_SUFFIX = ".detections.csv"
 
+AXES = ["frame", "chip", "y", "x"]
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -118,6 +120,7 @@ class CountCells(QWidget):
             positions=self.centers,
             size=self.radius,
             progress=progress,
+            axes=AXES[-self.ddata_ref.ndim :],
         )
         self.save_results()
 

@@ -17,15 +17,14 @@ from tqdm import tqdm
 
 from adc.fit import poisson as fit_poisson
 
+from .tools.log_decorator import log
+
 try:
     __version__ = version("anchor-droplet-chip")
 except PackageNotFoundError:
     # package is not installed
     __version__ = "Unknown"
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s %(levelname)s : %(message)s"
-)
 logger = logging.getLogger("adc.count")
 
 
@@ -37,6 +36,7 @@ def stack(bf_fluo_mask: np.ndarray):
     return get_cell_numbers(multiwell_image=fluo, labels=mask, bf=bf)
 
 
+@log
 def get_cell_numbers(
     multiwell_image: np.ndarray,
     labels: np.ndarray,
@@ -92,6 +92,7 @@ def get_cell_numbers(
     )
 
 
+@log
 def cropNd(stack: np.ndarray, center: tuple, size: int):
     """
     Crops the last two dimensions around the center(y,x) with the size(size, size)
@@ -104,6 +105,7 @@ def cropNd(stack: np.ndarray, center: tuple, size: int):
     return im
 
 
+@log
 def crop2d(img: np.ndarray, center: tuple, size: int):
     """
     2D crop
@@ -117,6 +119,7 @@ def crop2d(img: np.ndarray, center: tuple, size: int):
     return im
 
 
+@log
 def gdif(
     array2d: np.ndarray,
     dif_gauss_sigma: Tuple[float, float] = (1, 3),
@@ -131,13 +134,15 @@ def gdif(
     )
 
 
+@log
 def add_chip_index_to_coords(coords: tuple, chip_index):
     return (chip_index, *coords)
 
 
+@log
 def make_table(
     coordinates: list,
-    data: list,
+    counts: list,
     columns=("frame", "chip", "y", "x", "n_cells", "label"),
 ) -> pd.DataFrame:
     """
@@ -153,15 +158,17 @@ def make_table(
         [index-0, index-1, ..., y, x, n_cells, label],
         where label being automatic index starting with 1 and ending with len(counts)
     """
+    assert len(coordinates) == len(counts)
     droplets_out = np.array(coordinates)
-    counts = np.array(data).reshape((len(data), 1))
+    reshaped_counts = np.array(counts).reshape((len(counts), 1))
     labels = (np.arange(len(counts)) + 1).reshape((len(counts), 1))
     return pd.DataFrame(
-        data=np.hstack([droplets_out, counts, labels]),
+        data=np.hstack([droplets_out, reshaped_counts, labels]),
         columns=columns,
     )
 
 
+@log
 def load_mem(dask_array: da.Array) -> np.ndarray:
     """
     Loads dask array to memory
@@ -170,6 +177,7 @@ def load_mem(dask_array: da.Array) -> np.ndarray:
     return dask_array.compute()
 
 
+@log
 def get_peaks(
     crop_2d: np.ndarray,
     dif_gauss_sigma: tuple = (3, 5),
@@ -221,6 +229,7 @@ def get_peaks(
     return peaks
 
 
+@log
 def get_global_peaks(
     fluo_data: np.ndarray,
     center: np.ndarray,
@@ -248,6 +257,7 @@ def get_global_peaks(
     return np.array(peaks) + np.array(center) - size / 2
 
 
+@log
 def count2d(
     data: Union[np.ndarray, da.Array],
     positions: list,
@@ -260,35 +270,30 @@ def count2d(
     returns 2d array of positions and list of counts per position
     """
     logger.debug(f"count 2d {data.shape}, {len(positions)} positions")
-    print(positions)
     if isinstance(data, da.Array):
         data = loader(data)
         logger.debug(f"loaded {data.shape}")
 
     logger.debug("Start counting")
-    try:
-        peaks = np.vstack(
-            positions_per_droplet := [
-                localizer(
-                    fluo_data=data, center=center, size=size, crop_op=crop_op
-                )
-                for center in positions
-            ]
-        )
+    peaks = np.vstack(
+        positions_per_droplet := [
+            localizer(
+                fluo_data=data, center=center, size=size, crop_op=crop_op
+            )
+            for center in positions
+        ]
+    )
 
-        counts = list(map(len, positions_per_droplet))
-        return peaks, counts
-    except Exception as e:
-        logger.error("Problem in count2d")
-        print("positions_per_droplet", positions_per_droplet)
-        print("positions", positions)
-        return [], []
+    counts = list(map(len, positions_per_droplet))
+    return peaks, counts
 
 
+@log
 def count_recursive(
     data: da.Array,
     positions: list,
     size: int,
+    axes=["time", "chip", "Y", "X"],
     index: list = [],
     progress=tqdm,
     counting_function=count2d,
@@ -319,12 +324,10 @@ def count_recursive(
         tables = []
         for i, d in enumerate(progress(data)):
             new_ind = index + [i]
-            logger.debug(f"index {new_ind}")
             if positions.shape[-1] <= d.ndim:
                 use_coords = positions
             else:
                 use_coords = positions[positions[:, 0] == i][:, -d.ndim :]
-            print(use_coords)
             (
                 bac_locs,
                 per_droplet_counts,
@@ -339,6 +342,7 @@ def count_recursive(
                 counting_function=counting_function,
                 crop_op=crop_op,
                 table_function=table_function,
+                axes=axes,
             )
             tables.append(df)
             locs += bac_locs
@@ -364,22 +368,23 @@ def count_recursive(
             localizer=localizer,
             crop_op=crop_op,
         )
-        logger.debug(
-            f"Finished counting index {index}: {len(peaks)} peaks found"
-        )
+
         loc_out = [index + list(o) for o in peaks]
         count_out = counts
         droplets_out = [index + list(o) for o in coords]
         logger.debug(f"Added index {index} to {len(peaks)} peaks")
 
         try:
-            df = table_function(droplets_out, counts)
+            df = table_function(
+                droplets_out, counts, columns=axes + ["n_cells", "label"]
+            )
         except Exception as e:
             df = None
             logger.error(f"Making dataframe failed: {e}")
         return loc_out, count_out, droplets_out, df
 
 
+@log
 def get_global_coordinates_from_well_coordinates(
     napari_center: tuple, fluo, size
 ):
@@ -393,6 +398,7 @@ def get_global_coordinates_from_well_coordinates(
     return peaks_with_chip_index
 
 
+@log
 def get_peaks_per_frame(
     stack3d: np.ndarray,
     dif_gauss_sigma: tuple = (1, 3),
@@ -405,6 +411,7 @@ def get_peaks_per_frame(
     return list(map(partial(op, threshold_abs=thr, **kwargs), stack3d))
 
 
+@log
 def get_peaks_timelapse_all_wells(
     stack: np.ndarray, centers: list, size: int, plot: bool = 0
 ):
@@ -416,6 +423,7 @@ def get_peaks_timelapse_all_wells(
     return n_peaks
 
 
+@log
 def main(
     aligned_path: str,
     save_path_csv: str = "",

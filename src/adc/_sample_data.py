@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+from functools import partial
 
 import pandas as pd
 import tifffile as tf
@@ -13,15 +14,15 @@ def read_tif(path, **kwargs):
     return [(tf.imread(path), {**kwargs}, "image")]
 
 
-def read_csv(path, **kwargs):
+def read_csv(path, scale=1, **kwargs):
     centers = pd.read_csv(path)
-    yx = centers[["y", "x"]].values
+    yx = centers[["y", "x"]].values * scale
     return [(yx, {**kwargs}, "points")]
 
 
 DATA = [
     ("template_bin16_v3.tif", read_tif),
-    ("centers_bin16.csv", read_csv),
+    ("centers_bin16.csv", partial(read_csv, scale=8)),
 ]
 
 
@@ -39,8 +40,7 @@ def make_template():
 
 
 def make_centers():
-
-    return _load_sample_data(*DATA[1], name="centers", scale=(8, 8))
+    return _load_sample_data(*DATA[1], name="centers")
 
 
 def download_url_to_file(
@@ -63,7 +63,6 @@ def download_url_to_file(
 
 
 def _load_sample_data(image_name, readfun=read_tif, **kwargs):
-
     cp_dir = pathlib.Path.home().joinpath(".anchor-droplet-chip")
     cp_dir.mkdir(exist_ok=True)
     data_dir = cp_dir.joinpath("data")
