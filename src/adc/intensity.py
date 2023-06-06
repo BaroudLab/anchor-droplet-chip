@@ -2,27 +2,52 @@
 Measure intensity and background with `get_intensity_of_single_crop`
 """
 
+import functools
 import logging
 from typing import Tuple
 
 import dask.array as da
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from tifffile import imread
 from tqdm import tqdm
 
 from .count import crop2d, load_mem, make_table
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s %(levelname)s : %(message)s"
+    level=logging.DEBUG, format="%(asctime)s %(levelname)s : %(message)s"
 )
 logger = logging.getLogger("adc.count")
 
 
+def log(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        args_repr = [repr(a) for a in args]
+        kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]
+        signature = ", ".join(args_repr + kwargs_repr)
+        logger.debug(
+            f"function `{func.__name__}` called with args `{signature}`"
+        )
+        try:
+            result = func(*args, **kwargs)
+            logger.debug(f"function `{func.__name__}` returns `{result}`")
+            return result
+        except Exception as e:
+            logger.exception(
+                f"Exception raised in `{func.__name__}`. exception: `{str(e)}`"
+            )
+            raise e
+
+    return wrapper
+
+
+@log
 def estimate_norm_mean(values, eps=0.1, dtype=np.float32):
     """iteratively shaves off the values higher than mean + 3 * std to get a good mean value"""
+    assert len(values) > 0, f"Values empty: {values}"
     mean, std = values.mean(dtype=dtype), values.std(dtype=dtype)
+    if std == 0:
+        raise ValueError(f"Data has no variance {values}")
     good_values = values[values < mean + 3 * std]
     new_mean = good_values.mean()
     if np.abs(new_mean - mean) > eps:
@@ -31,12 +56,16 @@ def estimate_norm_mean(values, eps=0.1, dtype=np.float32):
         return new_mean
 
 
+@log
 def bg_op(
     data, outline_thickness=1, intensity_ops=(np.mean, estimate_norm_mean)
 ):
     """
     Measures intensity of the edge pixels with `intensity_op`
     """
+    logger.debug(
+        f"bg_op: data {data.shape}, outline+thickness {outline_thickness}, intensity_ops {intensity_ops}"
+    )
     t = outline_thickness
     values = np.concatenate(
         (
@@ -46,10 +75,13 @@ def bg_op(
             np.ravel(data[:t, t:]),
         )
     )
+    logger.debug(f"outline produces {len(values)} values")
     bg = [op(values) for op in intensity_ops]
+    logger.debug(f"returning {bg}")
     return tuple(bg)
 
 
+@log
 def measure_intensity_bg_of_crop(
     data: np.ndarray, intensity_op=np.mean, bg_op=bg_op, dtype=np.float32
 ):
@@ -69,6 +101,7 @@ def measure_intensity_bg_of_crop(
     return (intensity, *bg_results)
 
 
+@log
 def get_intensity_of_single_crop(
     data: np.ndarray,
     center: np.ndarray,
@@ -96,6 +129,7 @@ def get_intensity_of_single_crop(
     return results
 
 
+@log
 def measure_all_positions_2d(
     data,
     positions,
@@ -119,6 +153,7 @@ def measure_all_positions_2d(
     return results
 
 
+@log
 def measure_recursive(
     data: da.Array,
     positions: list,
