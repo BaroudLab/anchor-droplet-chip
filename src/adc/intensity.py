@@ -13,9 +13,6 @@ from tqdm import tqdm
 
 from .count import crop2d, load_mem, make_table
 
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s %(levelname)s : %(message)s"
-)
 logger = logging.getLogger("adc.count")
 
 
