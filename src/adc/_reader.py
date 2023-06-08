@@ -57,10 +57,25 @@ def napari_get_reader(path):
 
 
 def read_csv(path, props=DROPLETS_LAYER_PROPS):
-    data = pd.read_csv(path, index_col=0)
+    data0 = pd.read_csv(path, index_col=0)
+    if all((a in data0.columns for a in ["x","y","n_cells", "[AB]"])):
+        concenrations = data0.loc[:,"[AB]"].unique()
+        for i, c in enumerate(concenrations):
+            data0.loc[data0.loc[:,"[AB]"] == c, "chip"] = i
+
+        
+        
+        data1 = data0.loc[:,["chip", "x","y"]].values
+
+        props["properties"] = data0
+        props["text"] = "n_cells"
+        props["name"] = "n_cells"
+        props["metadata"] = {"data": data1}
+    else:
+        data1 = data0
     return [
         (
-            data.values,
+            data1,
             props,
             "points",
         )
