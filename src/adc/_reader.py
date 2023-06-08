@@ -66,7 +66,7 @@ def read_csv(path, props=DROPLETS_LAYER_PROPS):
 
         data1 = data0.loc[:, ["chip", "x", "y"]].values
 
-        props["properties"] = data0
+        props["properties"] = data0.loc[:, ["n_cells", "[AB]", "label"]]
         props["text"] = "n_cells"
         props["name"] = "n_cells"
         props["metadata"] = {"data": data1, "path": path}
