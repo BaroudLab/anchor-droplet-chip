@@ -57,6 +57,7 @@ def napari_get_reader(path):
 
 
 def read_csv(path, props=DROPLETS_LAYER_PROPS):
+    """Reading csv, showing droplets"""
     data0 = pd.read_csv(path, index_col=0)
     if all(a in data0.columns for a in ["x", "y", "n_cells", "[AB]"]):
         concenrations = data0.loc[:, "[AB]"].unique()
