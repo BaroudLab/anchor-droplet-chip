@@ -7,6 +7,8 @@ from functools import partial
 import pandas as pd
 import tifffile as tf
 
+from ._align_widget import DROPLETS_LAYER_PROPS
+
 URL = "https://github.com/BaroudLab/anchor-droplet-chip/releases/download/v0.0.5/"
 
 
@@ -30,7 +32,7 @@ def make_template():
     return (
         _load_sample_data(
             *DATA[0],
-            name="template_bin16",
+            name="template_image",
             colormap="cyan",
             opacity=0.5,
             scale=(8, 8),
@@ -40,7 +42,9 @@ def make_template():
 
 
 def make_centers():
-    return _load_sample_data(*DATA[1], name="centers")
+    kwargs = DROPLETS_LAYER_PROPS.copy()
+    kwargs["name"] = "template_coords"
+    return _load_sample_data(*DATA[1], **kwargs)
 
 
 def download_url_to_file(
