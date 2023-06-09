@@ -66,10 +66,10 @@ def read_csv(path, props=DROPLETS_LAYER_PROPS):
 
         data1 = data0.loc[:, ["chip", "x", "y"]].values
 
-        props["properties"] = data0.loc[:, ["n_cells", "[AB]", "label"]]
-        props["text"] = "n_cells"
+        # props["properties"] = data0.loc[:, ["n_cells", "[AB]", "label"]]
+        # props["text"] = "n_cells"
         props["name"] = "n_cells"
-        props["metadata"] = {"data": data1, "path": path}
+        props["metadata"] = {"data": data0, "path": path}
     else:
         data1 = data0
     return [
@@ -238,7 +238,10 @@ def read_zarr(path):
             output.append(
                 (
                     table.values,
-                    {"metadata": {"path": det_path}, **DETECTION_LAYER_PROPS},
+                    {
+                        "metadata": {"path": det_path, "data": table},
+                        **DETECTION_LAYER_PROPS,
+                    },
                     "points",
                 )
             )
@@ -261,7 +264,7 @@ def read_zarr(path):
                 (
                     droplets_df.values,
                     {
-                        "metadata": {"path": det_path},
+                        "metadata": {"path": det_path, "data": droplets_df},
                         "text": counts,
                         **COUNTS_LAYER_PROPS,
                     },
@@ -279,7 +282,7 @@ def read_zarr(path):
         from .count import make_table
 
         try:
-            df = make_table(droplets_out=droplets_df.values, counts=counts)
+            df = make_table(coordinates=droplets_df.values, counts=counts)
             df.to_csv(ppp)
             print(f"Saved table to {ppp}")
         except Exception as e:
