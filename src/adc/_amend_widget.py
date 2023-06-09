@@ -7,7 +7,14 @@ import dask.array as da
 import numpy as np
 import pandas as pd
 import requests
-from magicgui.widgets import CheckBox, Container, TextEdit, create_widget
+from magicgui.widgets import (
+    CheckBox,
+    ComboBox,
+    Container,
+    PushButton,
+    TextEdit,
+    create_widget,
+)
 from napari import Viewer
 from napari.layers import Image, Points
 from napari.utils import progress
@@ -54,13 +61,12 @@ class AmendDroplets(QWidget):
             label="droplets", annotation=Points
         )
         self.features_widget = TextEdit(label="features")
-        self.text_widget = TextEdit(label="output")
+        self.text_widget = TextEdit(label="buffer")
         self.container = Container(
             widgets=[
-                self.select_labels,
                 self.select_droplets,
+                self.select_labels,
                 self.text_widget,
-                self.features_widget,
             ]
         )
 
@@ -113,8 +119,24 @@ class AmendDroplets(QWidget):
                 )
 
         self.grouped_checkboxes = Container(widgets=self.widgets.values())
-        self.container.append(self.grouped_checkboxes)
+        self.container.insert(2, self.grouped_checkboxes)
         self.features_widget.value = self.grouped_features
+
+        self.mark_as_combo = ComboBox(
+            choices=[f["name"] for f in self.all_features], name="Mark as:"
+        )
+        self.container.append(self.mark_as_combo)
+
+        self.mark_as_btn = PushButton(name="Apply Label")
+        self.mark_as_btn.clicked.connect(self.apply_labels)
+        self.container.append(self.mark_as_btn)
+
+    def apply_labels(self):
+        selected_feature = self.mark_as_combo.current_choice
+        selected_droplets = self.text_widget.value
+        print(
+            f"Apply `{selected_feature}` to the droplets `{selected_droplets}`"
+        )
 
     def update_viewer(self, event):
         print(event)
