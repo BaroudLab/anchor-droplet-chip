@@ -23,7 +23,7 @@ DROPLETS_LAYER_PROPS = dict(
     name="Droplets",
     size=300,
     face_color="#00000000",
-    edge_color="#00880088",
+    edge_color="#00ff00ff",
 )
 DROPLETS_CSV_SUFFIX = ".droplets.csv"
 
