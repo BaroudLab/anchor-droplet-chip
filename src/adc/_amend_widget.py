@@ -227,10 +227,23 @@ class AmendDroplets(QWidget):
         print(self.feature_list)
         print(len(self.grouped_features["unlabeled"]))
 
-        self.df.loc[selected_droplets, f"feature:{selected_feature}"] = True
+        self.df.loc[
+            selected_droplets, (colname := f"feature:{selected_feature}")
+        ] = 1
         self.df.to_csv(self.save_path)
-        print("updated csv file ")
-        self.buffer = []
+        try:
+            self.temp_df = pd.read_csv(self.save_path, index_col=0)
+            assert colname in self.temp_df.columns
+            print("updated csv file ")
+            self.buffer = []
+
+        except (pd.errors.EmptyDataError, PermissionError):
+            print(f"Empty table `{self.save_path}`, probably write-protected")
+            show_error(
+                f"Error updating csv: close all apps using this file and try again! `{self.save_path}`"
+            )
+        except AssertionError:
+            show_error(f"column `{colname} not found!`")
 
     def update_viewer(self):
         print("Checkbox clicked", [c.value for c in self.widgets.values()])
