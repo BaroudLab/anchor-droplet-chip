@@ -132,8 +132,18 @@ class AmendDroplets(QWidget):
             self.df.to_csv(self.save_path)
             print(f"duplicated table {self.save_path}")
         else:
-            self.df = pd.read_csv(self.save_path, index_col=0)
-            print(f"Found table with features, loading {self.save_path}")
+            try:
+                self.df = pd.read_csv(self.save_path, index_col=0)
+                print(f"Found table with features, loading {self.save_path}")
+            except pd.errors.EmptyDataError:
+                print(f"Empty table `{self.save_path}`")
+                self.df = self.selected_droplet_layer.metadata["data"]
+                print(f"Fallback to the `{self.table_path}`")
+            except PermissionError:
+                show_error(
+                    f"Unable to read csv: close all apps using the file {self.save_path}!"
+                )
+                self.df = self.selected_droplet_layer.metadata["data"]
 
         if not self.features_loaded:
             self.load_features()
