@@ -148,6 +148,22 @@ class AmendDroplets(QWidget):
         if not self.features_loaded:
             self.load_features()
 
+    def add_features_from_table(self):
+        for col in self.df.columns:
+            if col.startswith("feature:"):
+                feature_name = col.split(":")[1]
+                for chip, label in self.df.loc[
+                    self.df.loc[:, col] == 1, ["chip", "label"]
+                ].values:
+                    self.feature_list.append(
+                        item := {
+                            "droplet_id": label,
+                            "feature_name": feature_name,
+                            "stack": chip,
+                        }
+                    )
+                    print(f"add from {col}: {item}")
+
     def load_features(self):
         self.widgets = {}
 
