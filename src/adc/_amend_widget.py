@@ -242,6 +242,7 @@ class AmendDroplets(QWidget):
             if (c[0], i % self.n_droplets_per_chip)
             in self.grouped_features[feature]
             and boxes[feature]
+            and hash(c.sum()) not in self.buffer
         ]
         self.buffer = []
         self.buffer_widget.value = []
@@ -259,6 +260,7 @@ class AmendDroplets(QWidget):
         ]
         self.text_widget.value = missing_indices
         self.buffer = missing_indices
+        self.buffer_widget.value = missing_indices
         self.deleted_droplets = self.original_droplet_set[missing_indices]
         self.undo_btn.visible = len(self.deleted_droplets) > 0
 
