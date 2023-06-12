@@ -180,8 +180,11 @@ class AmendDroplets(QWidget):
         ).json()
         print(res)
         self.feature_list = res["features"]
-        self.group_features()
         self.all_features = res["all_features"]
+
+        self.add_features_from_table()
+
+        self.group_features()
 
         self.create_checkboxes()
 
