@@ -170,9 +170,7 @@ class AmendDroplets(QWidget):
         try:
             self.norm_path = make_path(self.table_path)
         except IndexError:
-            print(
-                "table path is not good, select a layer with final_table.csv data"
-            )
+            show_error("select a layer with final_table.csv data")
             return
         print(self.norm_path)
         res = requests.get(
