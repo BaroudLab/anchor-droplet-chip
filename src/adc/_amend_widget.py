@@ -68,12 +68,12 @@ class AmendDroplets(QWidget):
         self.select_droplets.changed.connect(self.load_table)
 
         self.features_widget = TextEdit(label="features")
-        self.text_widget = TextEdit(label="buffer")
+        self.buffer_widget = TextEdit(label="buffer")
         self.container = Container(
             widgets=[
                 self.select_droplets,
                 self.select_labels,
-                self.text_widget,
+                self.buffer_widget,
             ]
         )
 
@@ -244,7 +244,7 @@ class AmendDroplets(QWidget):
             and boxes[feature]
         ]
         self.buffer = []
-        self.text_widget.value = []
+        self.buffer_widget.value = []
         self.currently_visible_hash = [
             make_hash(o) for o in self.selected_droplet_layer.data
         ]
