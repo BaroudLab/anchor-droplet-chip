@@ -6,6 +6,10 @@ contributions:
       title: Read dataset
       python_name: adc._reader:napari_get_reader
 
+    - id: anchor-droplet-chip.get_yeast_reader
+      title: Read yeast dataset
+      python_name: adc._reader:get_yeast_reader
+
     - id: anchor-droplet-chip.make_centers
       python_name: adc._sample_data:make_centers
       title: Show centers
@@ -66,6 +70,10 @@ contributions:
     - command: anchor-droplet-chip.get_reader
       accepts_directories: True
       filename_patterns: ['*.npy', '*.nd2', '*.zarr', "*.tif", "*.csv"]
+
+    - command: anchor-droplet-chip.get_yeast_reader
+      accepts_directories: False
+      filename_patterns: ["*.tif", "*.h5"]
 
   sample_data:
     - command: anchor-droplet-chip.make_template

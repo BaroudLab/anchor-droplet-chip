@@ -6,6 +6,8 @@ import dask.array as da
 import nd2
 import pandas as pd
 import tifffile as tf
+import h5py
+import numpy as np
 
 from ._align_widget import DROPLETS_CSV_SUFFIX, DROPLETS_LAYER_PROPS
 from ._count_widget import (
@@ -55,6 +57,15 @@ def napari_get_reader(path):
 
     return None
 
+def get_yeast_reader(path):
+
+    if path.endswith(".tif"):
+        return read_tif_yeast
+    
+    if path.endswith(".h5"):
+        return read_ilastik
+
+    return None
 
 def read_csv(path, props=DROPLETS_LAYER_PROPS):
     data = pd.read_csv(path, index_col=0)
@@ -65,6 +76,32 @@ def read_csv(path, props=DROPLETS_LAYER_PROPS):
             "points",
         )
     ]
+
+def read_tif_yeast(path):
+    data = tf.TiffFile(path)
+    z = data.aszarr()
+    d = da.from_zarr(z)
+    colormap = ["gray", "magenta", "green"]
+    names = ["BF", "mCherry", "GFP"]
+    assert d.ndim == 4, f"Expected 4D TCYX stack, got {d.shape}"
+    assert d.shape[1] == len(names), f"Expected {len(names)} channels, got {data.shape[1]} with total shape {data.shape}"
+    
+    
+    return [(
+        d,
+        {"colormap": colormap,
+         "name": names},
+         "image"
+    )]
+
+def read_ilastik(path):
+    labels = np.array(h5py.File(path)['exported_data']) - 1
+    return [
+        (labels,
+         {"name": "ilastik"},
+         "labels")
+    ]
+
 
 
 def read_tif(path):
