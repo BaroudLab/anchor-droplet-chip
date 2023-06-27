@@ -10,6 +10,10 @@ contributions:
       title: Read yeast dataset
       python_name: adc._reader:get_yeast_reader
 
+    - id: anchor-droplet-chip.segment
+      title: Segment yeast using cellpose
+      python_name: adc._segment_widget:SegmentYeast
+
     - id: anchor-droplet-chip.make_centers
       python_name: adc._sample_data:make_centers
       title: Show centers
@@ -49,6 +53,8 @@ contributions:
       title: Split the stack along one dimension
 
   widgets:
+    - command: anchor-droplet-chip.segment
+      display_name: Segment cells using cellpose
     - command: anchor-droplet-chip.DetectWells
       display_name: Detect wells
     - command: anchor-droplet-chip.CombineStack
@@ -73,7 +79,7 @@ contributions:
 
     - command: anchor-droplet-chip.get_yeast_reader
       accepts_directories: False
-      filename_patterns: ["*.tif", "*.h5"]
+      filename_patterns: ["*P=*.tif", "*.h5"]
 
   sample_data:
     - command: anchor-droplet-chip.make_template
