@@ -7,7 +7,7 @@ from pytest import fixture
 from adc._projection_stack import ProjectAlong
 
 TIF_PATH = "test.tif"
-TIF_SHAPE = (3, 4, 2**13, 2**10)
+TIF_SHAPE = (3, 4, 2**8, 2**10)
 
 
 @fixture
