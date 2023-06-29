@@ -44,6 +44,7 @@ DETECTION_CSV_SUFFIX = ".detections.csv"
 AXES = ["frame", "chip", "y", "x"]
 
 API_ENDPOINT = "https://nocodb01.pasteur.fr/api/getfeatures"
+ALL_FEATURES_ENDPOINT = "https://nocodb01.pasteur.fr/api/getallfeatures"
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -52,10 +53,16 @@ logger = logging.getLogger(__name__)
 class AmendDroplets(QWidget):
     "Detects cells in TRITC"
 
-    def __init__(self, napari_viewer: Viewer, endpoint=API_ENDPOINT) -> None:
+    def __init__(
+        self,
+        napari_viewer: Viewer,
+        endpoint=API_ENDPOINT,
+        all_features_endpoint=ALL_FEATURES_ENDPOINT,
+    ) -> None:
         super().__init__()
         self.viewer = napari_viewer
         self.endpoint = endpoint
+        self.all_features_endpoint = all_features_endpoint
         self.select_labels = create_widget(
             annotation=Image,
             label="Labels",
@@ -121,6 +128,7 @@ class AmendDroplets(QWidget):
             self.n_droplets_per_chip = len(self.original_droplet_set) / len(
                 self.df.chip.unique()
             )
+            print(f"{self.n_droplets_per_chip} droplets per chip")
         except AttributeError:
             print(f"Not a good table, select layer with Final_table.csv")
             return
@@ -179,8 +187,14 @@ class AmendDroplets(QWidget):
             timeout=5,
         ).json()
         print(res)
+        aft = requests.get(
+            self.all_features_endpoint,
+            timeout=5,
+        ).json()
+        print(aft)
+
         self.feature_list = res["features"]
-        self.all_features = res["all_features"]
+        self.all_features = aft["all_features"]
 
         self.add_features_from_table()
 
@@ -298,7 +312,6 @@ class AmendDroplets(QWidget):
             for o in self.horigin
             if o not in hdata and o in self.currently_visible_hash
         ]
-        self.text_widget.value = missing_indices
         self.buffer = missing_indices
         self.buffer_widget.value = missing_indices
         self.deleted_droplets = self.original_droplet_set[missing_indices]
@@ -319,8 +332,6 @@ class AmendDroplets(QWidget):
         """
 
         grouped_features = defaultdict(set)
-        for f in self.all_features:
-            grouped_features[f["name"]] = set()
 
         all_features = []
         for f in self.feature_list:
@@ -346,5 +357,7 @@ def make_hash(data):
 
 def make_path(path):
     "Matches the path to the database"
-    out = re.compile(r"Multicell/(.*)/((final_table.csv)|(day))").findall(path)
+    out = re.compile(
+        r"Multicell/(.*)/((final_table.csv)|(day)|(table))"
+    ).findall(path)
     return out[0][0]
