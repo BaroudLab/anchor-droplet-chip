@@ -1,4 +1,5 @@
 import logging
+import os
 from functools import partial
 
 import dask.array as da
@@ -14,7 +15,12 @@ from napari.utils import progress
 from qtpy.QtWidgets import QPushButton, QVBoxLayout, QWidget
 from skimage.measure import regionprops_table
 
+logging.basicConfig(level="DEBUG")
 logger = logging.getLogger(__name__)
+
+
+TIF_SUFFIX = "_CP_labels_BF_mCherry.tif"
+CSV_SUFFIX = "_CP_labels_BF_mCherry.csv"
 
 
 class SegmentYeast(QWidget):
@@ -41,7 +47,15 @@ class SegmentYeast(QWidget):
         self.layer = self.viewer.layers[self.select_image.current_choice]
         self.data = self.layer.metadata["dask_data"]
         self.path = self.layer.metadata["path"]
-        logger.debug(f"detecting {self.data.shape}")
+
+        logger.info(f"detecting  {self.data.shape} from {self.path}")
+        save_path_tif = self.path.replace(".tif", TIF_SUFFIX)
+        assert not os.path.exists(save_path_tif), f"{save_path_tif} exists"
+        self.save_path_tif = save_path_tif
+        save_path_csv = self.path.replace(".tif", CSV_SUFFIX)
+        assert not os.path.exists(save_path_csv), f"{save_path_csv} exists"
+        self.save_path_csv = save_path_csv
+
         self.p = progress(total=len(self.data), desc="segmenting")
         logger.debug(self.p)
         self.worker = self.segment()
@@ -57,6 +71,7 @@ class SegmentYeast(QWidget):
         self.btn.clicked.disconnect()
         self.btn.clicked.connect(self.abort)
         self.btn.setText("STOP!")
+        self.status = "processing"
 
     def init_model(self):
         self.device = (
@@ -84,11 +99,16 @@ class SegmentYeast(QWidget):
         self.df.loc[0] = [0] * len(self.df.columns)
         self.df = self.df.reset_index()
         try:
-            self.viewer.layers[(layer_name := "cellpose")].data = self.labels
-            self.viewer.layers["cellpose"].properties = self.df
-        except KeyError:
-            self.viewer.add_labels(
-                self.labels, name=layer_name, properties=self.df
+            self.out_layer.data = self.labels
+            self.out_layer.properties = self.df
+            self.out_layer.metadata["df"] = self.df
+            self.out_layer.metadata["status"] = self.status
+        except AttributeError:
+            self.out_layer = self.viewer.add_labels(
+                self.labels,
+                name="cellpose",
+                properties=self.df,
+                metadata={"df": self.df, "status": self.status},
             )
         self.p.update()
 
@@ -96,6 +116,7 @@ class SegmentYeast(QWidget):
         self.p.set_description("aborting")
         self.worker.quit()
         self.btn.setText("Aborting...")
+        self.out_layer.metadata["status"] = "aborted"
 
     def close_progress(self):
         logger.debug("close progress")
@@ -103,13 +124,19 @@ class SegmentYeast(QWidget):
         self.btn.clicked.disconnect()
         self.btn.clicked.connect(self._detect)
         self.btn.setText(self.BTN_TEXT)
+        if self.status == "finished":
+            self.out_layer.metadata["status"] = "finished"
+        save = self.out_layer.save(self.save_path_tif)
+        logger.info(f"saved {save}")
+        self.df.to_csv(self.save_path_csv)
+        logger.info(f"saved {self.save_path_csv}")
 
     @thread_worker
     def segment(self):
         logger.debug("start segment")
         labels = []
         props = []
-        for d in self.data:
+        for frame, d in enumerate(self.data):
             logger.debug(d.shape)
             if isinstance(d, da.Array):
                 d = d.compute()
@@ -119,12 +146,19 @@ class SegmentYeast(QWidget):
             prop = regionprops_table(
                 label_image=mask,
                 intensity_image=d[1],
-                properties=("label", "area", "mean_intensity", "eccentricity"),
+                properties=(
+                    "label",
+                    "area",
+                    "mean_intensity",
+                    "eccentricity",
+                    "solidity",
+                ),
             )
             labels.append(mask)
-            props.append(prop)
+            props.append({**prop, "frame": frame})
             logger.debug(f"yielding labels, props")
             yield (labels, props)
+        self.status = "finished"
 
     def reset_choices(self, event=None):
         self.select_image.reset_choices(event)
