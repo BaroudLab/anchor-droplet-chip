@@ -3,7 +3,9 @@ import logging
 import os
 
 import dask.array as da
+import h5py
 import nd2
+import numpy as np
 import pandas as pd
 import tifffile as tf
 
@@ -53,6 +55,9 @@ def napari_get_reader(path):
     if path.endswith(".csv"):
         return read_csv
 
+    if path.endswith(".h5"):
+        return read_ilastik
+
     return None
 
 
@@ -70,6 +75,15 @@ def read_csv(path, props=DROPLETS_LAYER_PROPS):
         # props["text"] = "n_cells"
         props["name"] = "n_cells"
         props["metadata"] = {"data": data0, "path": path}
+        props["properties"] = data0["label"]
+    elif all(
+        a in data0.columns for a in ["x", "y", "n_cells", "label", "frame"]
+    ):
+        data1 = data0.loc[:, ["chip", "y", "x"]].values
+        props["metadata"] = {"data": data0, "path": path}
+        props["name"] = "n_cells"
+        props["properties"] = data0["label"]
+
     else:
         data1 = data0
     return [
@@ -81,11 +95,20 @@ def read_csv(path, props=DROPLETS_LAYER_PROPS):
     ]
 
 
+def read_ilastik(hdf5_path):
+    try:
+        data = np.array(h5py.File(hdf5_path, "r")["exported_data"])
+        data = data - data.min()
+        return [(data, {}, "image")]
+    except Exception as e:
+        print(list(h5py.File(hdf5_path, "r").keys()))
+
+
 def read_tif(path):
     data = tf.TiffFile(path)
     z = data.aszarr()
     d = da.from_zarr(z)
-    if max(d.shape) > 4000:
+    if max(d.shape) > 4000:  # make multiscale
         arr = [d[..., :: 2**i, :: 2**i] for i in range(4)]
         arr_shape = d.shape
     else:
