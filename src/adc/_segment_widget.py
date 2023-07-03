@@ -149,6 +149,7 @@ class SegmentYeast(QWidget):
                 intensity_image=mCherry,
                 properties=(
                     "label",
+                    "centroid",
                     "area",
                     "mean_intensity",
                     "eccentricity",
