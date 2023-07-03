@@ -94,7 +94,7 @@ class SegmentYeast(QWidget):
         logger.debug("update layer")
         labels, props = data
         self.labels = np.array(labels)
-        logger.debug(self.labels.shape, len(props))
+        logger.debug(f"Labels {self.labels.shape}, {len(props)} properties")
         self.df = pd.concat(pd.DataFrame(p, index=p["label"]) for p in props)
         self.df.loc[0] = [0] * len(self.df.columns)
         self.df = self.df.reset_index()
@@ -136,6 +136,7 @@ class SegmentYeast(QWidget):
         logger.debug("start segment")
         labels = []
         props = []
+        max_label = 0
         for frame, d in enumerate(self.data):
             logger.debug(d.shape)
             if isinstance(d, da.Array):
@@ -143,7 +144,14 @@ class SegmentYeast(QWidget):
                 logger.debug("compute dask array into memory")
             bf, mCherry, GFP = d
             mask, _, _, _ = self.op(d)
-            logger.debug(mask.shape, d[1].shape)
+            logger.debug(
+                f"mask shape: {mask.shape}, mCheery shape: {mCherry.shape}"
+            )
+
+            mask = mask + max_label
+            mask[mask == max_label] = 0
+            max_label = mask.max()
+            labels.append(mask)
             prop = regionprops_table(
                 label_image=mask,
                 intensity_image=mCherry,
@@ -156,7 +164,6 @@ class SegmentYeast(QWidget):
                     "solidity",
                 ),
             )
-            labels.append(mask)
             props.append({**prop, "frame": frame})
             logger.debug(f"yielding labels, props")
             yield (labels, props)
