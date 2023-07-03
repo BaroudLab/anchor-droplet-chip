@@ -141,11 +141,12 @@ class SegmentYeast(QWidget):
             if isinstance(d, da.Array):
                 d = d.compute()
                 logger.debug("compute dask array into memory")
+            bf, mCherry, GFP = d
             mask, _, _, _ = self.op(d)
             logger.debug(mask.shape, d[1].shape)
             prop = regionprops_table(
                 label_image=mask,
-                intensity_image=d[1],
+                intensity_image=mCherry,
                 properties=(
                     "label",
                     "area",
