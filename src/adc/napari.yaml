@@ -75,7 +75,7 @@ contributions:
   readers:
     - command: anchor-droplet-chip.get_reader
       accepts_directories: True
-      filename_patterns: ['*.npy', '*.nd2', '*.zarr', "*.tif", "*.csv"]
+      filename_patterns: ['*.npy', '*.nd2', '*.zarr', "*.tif", "*.tiff", "*.csv"]
 
     - command: anchor-droplet-chip.get_yeast_reader
       accepts_directories: False
