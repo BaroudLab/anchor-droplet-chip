@@ -15,7 +15,7 @@ from napari.utils import progress
 from qtpy.QtWidgets import QPushButton, QVBoxLayout, QWidget
 from skimage.measure import regionprops_table
 
-logging.basicConfig(level="DEBUG")
+# logging.basicConfig(level="DEBUG")
 logger = logging.getLogger(__name__)
 
 
