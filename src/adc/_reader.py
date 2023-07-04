@@ -50,7 +50,16 @@ def napari_get_reader(path):
         return read_zarr
 
     if path.endswith(".tif"):
+        if "P=" in path:
+            if "CP_labels" in path:
+                return read_cellpose_labels
+
+            return read_tif_yeast
+
         return read_tif
+
+    if "Simple Segmentation_" in path and path.endswith(".tiff"):
+        return read_ilastik_labels_tif
 
     if path.endswith(".csv"):
         return read_csv
@@ -58,8 +67,55 @@ def napari_get_reader(path):
     return None
 
 
+def read_ilastik_labels_tif(path):
+    data = tf.imread(path)
+    labels = data - 1
+    return [(labels, dict(name="ilastik"), "labels")]
+
+
+def read_cellpose_labels(path):
+    print("reading cellpose labels")
+    labels = tf.imread(path)
+    try:
+        properties = read_cellpose_seg_table(path.replace(".tif", ".csv"))
+    except Exception as e:
+        print(f"Failed loading csv: {e}")
+        properties = None
+    return [(labels, dict(name="cellpose", properties=properties), "labels")]
+
+
+def read_cellpose_seg_table(table_path: str):
+    try:
+        table = pd.read_csv(
+            table_path,
+            index_col=0,
+            # usecols=("index",
+            #     "label",
+            #     "area",
+            #     "mean_intensity",
+            #     "eccentricity",
+            #     "solidity",
+            #     "frame"
+            # )
+        )
+    except ValueError:
+        table = pd.read_csv(
+            table_path,
+            index_col=0,
+            # usecols=(
+            #     "index",
+            #     "label",
+            #     "area",
+            #     "mean_intensity",
+            #     "eccentricity",
+            #     "frame"
+            # )
+        )
+    return table.sort_index()
+
+
 def get_yeast_reader(path):
-    if path.endswith(".tif"):
+    if path.endswith("*P=*.tif"):
         return read_tif_yeast
 
     if path.endswith(".h5"):
