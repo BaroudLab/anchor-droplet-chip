@@ -9,7 +9,7 @@ import torch
 from cellpose import models
 from magicgui.widgets import Container, SpinBox, create_widget
 from napari import Viewer
-from napari.layers import Image
+from napari.layers import Image, Shapes
 from napari.qt.threading import thread_worker
 from napari.utils import progress
 from qtpy.QtWidgets import QPushButton, QVBoxLayout, QWidget
@@ -30,8 +30,17 @@ class SegmentYeast(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.select_image = create_widget(label="mCherry", annotation=Image)
+        self.select_shape = create_widget(label="area", annotation=Shapes)
         self.diam = SpinBox(label="diameter (px)", value=50)
-        self.container = Container(widgets=[self.select_image, self.diam])
+        self.skip = SpinBox(label="skip frames", value=0)
+        self.container = Container(
+            widgets=[
+                self.select_image, 
+                self.select_shape,
+                self.diam,
+                self.skip
+            ]
+        )
         self.btn = QPushButton(self.BTN_TEXT)
         self.btn.clicked.connect(self._detect)
         self.layout = QVBoxLayout()
@@ -171,3 +180,11 @@ class SegmentYeast(QWidget):
 
     def reset_choices(self, event=None):
         self.select_image.reset_choices(event)
+
+
+def get_roi(layer):
+    shape = layer.data[0]
+    ymax, xmax = shape.max(axis=0)[-2:]
+    ymin, xmin = shape.min(axis=0)[-2:]
+    return (slice(None), slice(ymin,ymax), slice(xmin,xmax))
+    
