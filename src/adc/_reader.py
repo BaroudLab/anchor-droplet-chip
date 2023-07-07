@@ -49,9 +49,12 @@ def napari_get_reader(path):
     if path.endswith(".zarr"):
         return read_zarr
 
+    if "ilastik" in path:
+        return read_ilastik_labels_tif
+
     if path.endswith(".tif"):
-        if "P=" in path:
-            if "CP_labels" in path:
+        if "P=" in path or "pos" in path and not "ilastik" in path:
+            if "CP_labels" in path or "cellpose" in path:
                 return read_cellpose_labels
 
             return read_tif_yeast
@@ -70,7 +73,7 @@ def napari_get_reader(path):
 def read_ilastik_labels_tif(path):
     data = tf.imread(path)
     labels = data - 1
-    return [(labels, dict(name="ilastik"), "labels")]
+    return [(labels, dict(name="ilastik", metadata={"path": path}), "labels")]
 
 
 def read_cellpose_labels(path):
