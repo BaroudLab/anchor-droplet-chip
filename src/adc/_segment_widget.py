@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 from cellpose import models
-from magicgui.widgets import Container, SpinBox, create_widget
+from magicgui.widgets import Container, SpinBox, TextEdit, create_widget
 from napari import Viewer
 from napari.layers import Image, Shapes
 from napari.qt.threading import thread_worker
@@ -15,12 +15,12 @@ from napari.utils import progress
 from qtpy.QtWidgets import QPushButton, QVBoxLayout, QWidget
 from skimage.measure import regionprops_table
 
-# logging.basicConfig(level="DEBUG")
+logging.basicConfig(level="DEBUG")
 logger = logging.getLogger(__name__)
 
 
-TIF_SUFFIX = "_CP_labels_BF_mCherry.tif"
-CSV_SUFFIX = "_CP_labels_BF_mCherry.csv"
+TIF_SUFFIX = "_CP_labels_{channel}.tif"
+CSV_SUFFIX = "_CP_labels_{channel}.csv"
 
 
 class SegmentYeast(QWidget):
@@ -30,15 +30,17 @@ class SegmentYeast(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.select_image = create_widget(label="mCherry", annotation=Image)
-        self.select_shape = create_widget(label="area", annotation=Shapes)
-        self.diam = SpinBox(label="diameter (px)", value=50)
-        self.skip = SpinBox(label="skip frames", value=0)
+        self.select_roi = create_widget(label="area", annotation=Shapes)
+        self.select_diam = SpinBox(label="diameter (px)", value=50)
+        self.select_skip = SpinBox(label="skip frames", value=0)
+        # self.select_channels = TextEdit(label="channels", value=[0,1])
         self.container = Container(
             widgets=[
-                self.select_image, 
-                self.select_shape,
-                self.diam,
-                self.skip
+                self.select_image,
+                # self.select_channels,
+                self.select_roi,
+                self.select_diam,
+                self.select_skip,
             ]
         )
         self.btn = QPushButton(self.BTN_TEXT)
@@ -54,16 +56,34 @@ class SegmentYeast(QWidget):
 
     def _detect(self):
         self.layer = self.viewer.layers[self.select_image.current_choice]
-        self.data = self.layer.metadata["dask_data"]
+        self.data = self.layer.data
         self.path = self.layer.metadata["path"]
 
         logger.info(f"detecting  {self.data.shape} from {self.path}")
-        save_path_tif = self.path.replace(".tif", TIF_SUFFIX)
+        save_path_tif = self.path.replace(
+            ".tif", TIF_SUFFIX.format(channel=self.layer.name)
+        )
         assert not os.path.exists(save_path_tif), f"{save_path_tif} exists"
         self.save_path_tif = save_path_tif
-        save_path_csv = self.path.replace(".tif", CSV_SUFFIX)
+        save_path_csv = self.path.replace(
+            ".tif", CSV_SUFFIX.format(channel=self.layer.name)
+        )
         assert not os.path.exists(save_path_csv), f"{save_path_csv} exists"
         self.save_path_csv = save_path_csv
+
+        self.roi = (
+            get_roi(self.viewer.layers[choice])
+            if (choice := self.select_roi.current_choice)
+            else None
+        )
+
+        if self.roi is not None:
+            self.roi_mask = np.zeros(self.data.shape[-2:], dtype="bool")
+            self.roi_mask[self.roi] = 1
+        else:
+            self.roi_mask = np.ones(self.data.shape[-2:], dtype="bool")
+
+        self.skip_frame = self.select_skip.value
 
         self.p = progress(total=len(self.data), desc="segmenting")
         logger.debug(self.p)
@@ -81,6 +101,9 @@ class SegmentYeast(QWidget):
         self.btn.clicked.connect(self.abort)
         self.btn.setText("STOP!")
         self.status = "processing"
+        self.out_layer = self.viewer.add_labels(
+            np.empty_like(self.data), name="cellpose"
+        )
 
     def init_model(self):
         self.device = (
@@ -92,11 +115,10 @@ class SegmentYeast(QWidget):
             model_type="cyto2", gpu=True, device=self.device
         )
         logger.debug(f"using {self.model.device.type}")
+
         self.op = partial(
             self.model.eval,
-            channels=[0, 1],
-            diameter=self.diam.value,
-            batch_size=16,
+            diameter=self.select_diam.value,
         )
 
     def update_layer(self, data):
@@ -104,7 +126,9 @@ class SegmentYeast(QWidget):
         labels, props = data
         self.labels = np.array(labels)
         logger.debug(f"Labels {self.labels.shape}, {len(props)} properties")
-        self.df = pd.concat(pd.DataFrame(p, index=p["label"]) for p in props)
+        self.df = pd.concat(
+            pd.DataFrame(p, index=p["label"]) for p in filter(len, props)
+        )
         self.df.loc[0] = [0] * len(self.df.columns)
         self.df = self.df.reset_index()
         try:
@@ -148,34 +172,40 @@ class SegmentYeast(QWidget):
         max_label = 0
         for frame, d in enumerate(self.data):
             logger.debug(d.shape)
-            if isinstance(d, da.Array):
-                d = d.compute()
-                logger.debug("compute dask array into memory")
-            bf, mCherry, GFP = d
-            mask, _, _, _ = self.op(d)
-            logger.debug(
-                f"mask shape: {mask.shape}, mCheery shape: {mCherry.shape}"
-            )
+            if (sk := self.skip_frame) > 0 and frame % (sk + 1) == sk:
+                logger.debug(f"skip frame {frame}")
+                labels.append(np.zeros(d.shape, dtype="uint16"))
+                yield (labels, props)
+            else:
+                if isinstance(d, da.Array):
+                    d = d.compute()
+                    logger.debug("compute dask array into memory")
+                mCherry = d
+                mask, _, _, _ = self.op(d)
+                logger.debug(
+                    f"mask shape: {mask.shape}, mCheery shape: {mCherry.shape}"
+                )
+                mask = mask * self.roi_mask
 
-            mask = mask + max_label
-            mask[mask == max_label] = 0
-            max_label = mask.max()
-            labels.append(mask)
-            prop = regionprops_table(
-                label_image=mask,
-                intensity_image=mCherry,
-                properties=(
-                    "label",
-                    "centroid",
-                    "area",
-                    "mean_intensity",
-                    "eccentricity",
-                    "solidity",
-                ),
-            )
-            props.append({**prop, "frame": frame})
-            logger.debug(f"yielding labels, props")
-            yield (labels, props)
+                mask = mask + max_label
+                mask[mask == max_label] = 0
+                max_label = mask.max()
+                labels.append(mask)
+                prop = regionprops_table(
+                    label_image=mask,
+                    intensity_image=mCherry,
+                    properties=(
+                        "label",
+                        "centroid",
+                        "area",
+                        "mean_intensity",
+                        "eccentricity",
+                        "solidity",
+                    ),
+                )
+                props.append({**prop, "frame": frame})
+                logger.debug(f"yielding labels, props")
+                yield (labels, props)
         self.status = "finished"
 
     def reset_choices(self, event=None):
@@ -186,5 +216,4 @@ def get_roi(layer):
     shape = layer.data[0]
     ymax, xmax = shape.max(axis=0)[-2:]
     ymin, xmin = shape.min(axis=0)[-2:]
-    return (slice(None), slice(ymin,ymax), slice(xmin,xmax))
-    
+    return tuple(slice(None), slice(ymin, ymax), slice(xmin, xmax))
