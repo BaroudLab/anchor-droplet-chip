@@ -69,10 +69,24 @@ class SubStack(QWidget):
             channel_axis = labels.index("C")
         except ValueError:
             channel_axis = None
+        try:
+            names = (
+                f"{nnn}_{self.crop_coords}"
+                for nnn in self.selected_layer.metadata["names"]
+            )
+        except KeyError:
+            names = f"{self.selected_layer.name}_{self.crop_coords}"
+
+        try:
+            colormap = self.selected_layer.metadata["colormap"]
+        except KeyError:
+            colormap = None
+
         return self.viewer.add_image(
             self.out_dask,
-            name=f"{self.selected_layer.name}_{self.crop_coords}",
+            name=names,
             channel_axis=channel_axis,
+            colormap=colormap,
             metadata={
                 "pixel_size_um": self.pixel_size_um,
                 "sizes": self.out_sizes,
