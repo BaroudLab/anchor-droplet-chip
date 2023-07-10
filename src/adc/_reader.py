@@ -149,6 +149,8 @@ def read_tif_yeast(path):
         names
     ), f"Expected {len(names)} channels, got {data.shape[1]} with total shape {data.shape}"
 
+    contrast_limits = (None, (90, 600), (90, 600))
+
     return [
         (
             d,
@@ -156,13 +158,14 @@ def read_tif_yeast(path):
                 "colormap": colormap,
                 "name": names,
                 "channel_axis": 1,
-                "contrast_limits": (None, (90, 600), (90, 600)),
+                "contrast_limits": contrast_limits,
                 "metadata": {
                     "dask_data": d,
                     "path": path,
                     "colormap": colormap,
                     "names": names,
                     "sizes": {k: v for k, v in zip("TCYX", d.shape)},
+                    "contrast_limits": contrast_limits,
                 },
             },
             "image",
@@ -224,7 +227,13 @@ def read_tif(path):
             arr,
             {
                 "channel_axis": channel_axis,
-                "metadata": {"path": path, "dask_data": d, "sizes": sizes},
+                "metadata": {
+                    "path": path,
+                    "dask_data": d,
+                    "sizes": sizes,
+                    "colormap": colormap,
+                    "contrast_limits": contrast_limits,
+                },
                 "colormap": colormap,
                 "contrast_limits": contrast_limits,
             },

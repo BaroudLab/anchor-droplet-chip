@@ -81,11 +81,16 @@ class SubStack(QWidget):
             colormap = self.selected_layer.metadata["colormap"]
         except KeyError:
             colormap = None
+        try:
+            contrast_limits = self.selected_layer.metadata["contrast_limits"]
+        except KeyError:
+            contrast_limits = None
 
         return self.viewer.add_image(
             self.out_dask,
             name=names,
             channel_axis=channel_axis,
+            contrast_limits=contrast_limits,
             colormap=colormap,
             metadata={
                 "pixel_size_um": self.pixel_size_um,
