@@ -157,7 +157,13 @@ def read_tif_yeast(path):
                 "name": names,
                 "channel_axis": 1,
                 "contrast_limits": (None, (90, 600), (90, 600)),
-                "metadata": {"dask_data": d, "path": path},
+                "metadata": {
+                    "dask_data": d,
+                    "path": path,
+                    "colormap": colormap,
+                    "names": names,
+                    "sizes": {k: v for k, v in zip("TCYX", d.shape)},
+                },
             },
             "image",
         )
