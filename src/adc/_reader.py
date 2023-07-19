@@ -37,6 +37,7 @@ def napari_get_reader(path):
         If the path is a recognized format, return a function that accepts the
         same path or list of paths, and returns a list of layer data tuples.
     """
+    logger.debug("napari_get_reader starts")
     if isinstance(path, list):
         # reader plugins may be handed single path, or a list of paths.
         # if it is a list, it is assumed to be an image stack...
@@ -50,19 +51,27 @@ def napari_get_reader(path):
     if path.endswith(".zarr"):
         return read_zarr
 
-    if "ilastik" in path:
+    if "ilastik" in path and not "cellpose" in path:
+        logger.debug("ilastik in path, no cellpose")
         return read_ilastik_labels_tif
 
     if path.endswith(".tif"):
+        logger.debug("ends with .tif")
+        
         if "P=" in path or "pos" in path and not "ilastik" in path:
+            logger.debug("pos in path, no ilastik")
+
             if "CP_labels" in path or "cellpose" in path:
+                logger.debug("cellpose in path, return read_cellpose_labels")
                 return read_cellpose_labels
+            logger.debug("no cellpose in path, return read_tif_yeast")
 
             if "filter.tif" in path:
                 return partial(read_ilastik_labels_tif, name="filter")
 
             return read_tif_yeast
-
+        logger.debug("no pos in path, return read_tif")
+        
         return read_tif
 
     if "Simple Segmentation_" in path and path.endswith(".tiff"):
