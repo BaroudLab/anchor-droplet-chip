@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from functools import partial
 
 import dask.array as da
 import h5py
@@ -57,6 +58,9 @@ def napari_get_reader(path):
             if "CP_labels" in path or "cellpose" in path:
                 return read_cellpose_labels
 
+            if "filter.tif" in path:
+                return partial(read_ilastik_labels_tif, name="filter")
+
             return read_tif_yeast
 
         return read_tif
@@ -70,10 +74,10 @@ def napari_get_reader(path):
     return None
 
 
-def read_ilastik_labels_tif(path):
+def read_ilastik_labels_tif(path, name="ilastik"):
     data = tf.imread(path)
     labels = data - 1
-    return [(labels, dict(name="ilastik", metadata={"path": path}), "labels")]
+    return [(labels, dict(name=name, metadata={"path": path}), "labels")]
 
 
 def read_cellpose_labels(path):
