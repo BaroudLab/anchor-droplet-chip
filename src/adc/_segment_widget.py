@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 TIF_SUFFIX = "_CP_labels_{channel}.tif"
 CSV_SUFFIX = "_CP_labels_{channel}.csv"
+MODEL_TYPE = "cyto"
 
 
 class SegmentYeast(QWidget):
@@ -30,7 +31,8 @@ class SegmentYeast(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.select_image = create_widget(label="mCherry", annotation=Image)
-        self.select_roi = create_widget(label="area", annotation=Shapes)
+        self.select_roi = create_widget(label="roi", annotation=Shapes)
+        self.select_roi.changed.connect(self.init_roi)
         self.select_diam = SpinBox(label="diameter (px)", value=50)
         self.select_skip = SpinBox(label="skip frames", value=0)
         # self.select_channels = TextEdit(label="channels", value=[0,1])
@@ -53,6 +55,31 @@ class SegmentYeast(QWidget):
         self.reset_choices()
         self.stop = False
         self.init_model()
+        self.init_roi()
+
+    def init_roi(self):
+        logger.debug("updating roi")
+
+        self.roi_slice = (
+            get_roi(roi_layer := self.viewer.layers[choice])
+            if (choice := self.select_roi.current_choice)
+            else None
+        )
+
+        try:
+            self.data
+        except AttributeError:
+            self.data = self.viewer.layers[
+                self.select_image.current_choice
+            ].data
+
+        if self.roi_slice is not None:
+            self.roi_mask = np.zeros(self.data.shape[-2:], dtype="bool")
+            self.roi_mask[self.roi_slice] = True
+            logger.debug("created roi_slice, roi_mask")
+        else:
+            self.roi_mask = np.ones(self.data.shape[-2:], dtype="bool")
+            logger.debug("use blank roi_mask")
 
     def _detect(self):
         self.layer = self.viewer.layers[self.select_image.current_choice]
@@ -70,18 +97,6 @@ class SegmentYeast(QWidget):
         )
         assert not os.path.exists(save_path_csv), f"{save_path_csv} exists"
         self.save_path_csv = save_path_csv
-
-        self.roi = (
-            get_roi(self.viewer.layers[choice])
-            if (choice := self.select_roi.current_choice)
-            else None
-        )
-
-        if self.roi is not None:
-            self.roi_mask = np.zeros(self.data.shape[-2:], dtype="bool")
-            self.roi_mask[self.roi] = 1
-        else:
-            self.roi_mask = np.ones(self.data.shape[-2:], dtype="bool")
 
         self.skip_frame = self.select_skip.value
 
@@ -112,7 +127,7 @@ class SegmentYeast(QWidget):
             else torch.device("cuda")
         )
         self.model = models.Cellpose(
-            model_type="cyto2", gpu=True, device=self.device
+            model_type=MODEL_TYPE, gpu=True, device=self.device
         )
         logger.debug(f"using {self.model.device.type}")
 
@@ -136,6 +151,7 @@ class SegmentYeast(QWidget):
             self.out_layer.properties = self.df
             self.out_layer.metadata["df"] = self.df
             self.out_layer.metadata["status"] = self.status
+
         except AttributeError:
             self.out_layer = self.viewer.add_labels(
                 self.labels,
@@ -177,6 +193,15 @@ class SegmentYeast(QWidget):
                 labels.append(np.zeros(d.shape, dtype="uint16"))
                 yield (labels, props)
             else:
+                if self.roi_slice is not None:
+                    d = d[self.roi_slice]
+                    self.out_layer.translate = [
+                        0,
+                        self.roi_slice[1].start,
+                        self.roi_slice[2].start,
+                    ]
+                else:
+                    self.out_layer.translate = [0] * 3
                 if isinstance(d, da.Array):
                     d = d.compute()
                     logger.debug("compute dask array into memory")
@@ -210,10 +235,15 @@ class SegmentYeast(QWidget):
 
     def reset_choices(self, event=None):
         self.select_image.reset_choices(event)
+        self.select_roi.reset_choices(event)
+        if self.select_roi.choices:
+            self.viewer.layers[self.select_roi.current_choice].events.connect(
+                self.init_roi
+            )
 
 
 def get_roi(layer):
     shape = layer.data[0]
     ymax, xmax = shape.max(axis=0)[-2:]
     ymin, xmin = shape.min(axis=0)[-2:]
-    return tuple(slice(None), slice(ymin, ymax), slice(xmin, xmax))
+    return tuple((slice(None), slice(ymin, ymax), slice(xmin, xmax)))
