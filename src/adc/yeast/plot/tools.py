@@ -1,12 +1,18 @@
-import yaml
-from adc._reader import napari_get_reader, read_tif_yeast
+import logging
+import os
 from dataclasses import dataclass, field
-from collections import defaultdict
-from typing import List, Union, Tuple
+from typing import List, Tuple, Union
+
 import numpy as np
+import yaml
+
+from adc._reader import napari_get_reader, read_tif_yeast
+
+logger = logging.getLogger(__name__)
 
 
-with open("filters.yaml") as f:
+with open(ppp := "filters.yaml") as f:
+    logger.info(f"loading filters from {os.path.abspath(ppp)}")
     filters = yaml.load(f, Loader=yaml.SafeLoader)
 
 
@@ -34,6 +40,7 @@ def slice_from_axis(array, *, axis, element):
     slices[axis] = element
     return array[tuple(slices)]
 
+
 def read_data(path, reader=napari_get_reader):
     out = reader(path)
     # print(out)
@@ -41,29 +48,33 @@ def read_data(path, reader=napari_get_reader):
         return out
     data, props, kind = read_data(path, out)[0]
     if "channel_axis" in props and (ca := props["channel_axis"]) is not None:
-        
         return [
             Layer(
-                data=d, 
-                kind=kind, 
-                metadata=props["metadata"], 
+                data=d,
+                kind=kind,
+                metadata=props["metadata"],
                 source=Source(path=path),
-                colormap=c, 
-                name=n, 
-                contrast_limits=cl
-            ) for d, c, n, cl in zip(
-                (slice_from_axis(data, axis=ca, element=i) for i in range(data.shape[ca])),
+                colormap=c,
+                name=n,
+                contrast_limits=cl,
+            )
+            for d, c, n, cl in zip(
+                (
+                    slice_from_axis(data, axis=ca, element=i)
+                    for i in range(data.shape[ca])
+                ),
                 props["colormap"],
                 props["name"],
-                props["contrast_limits"]
+                props["contrast_limits"],
             )
         ]
     return [Layer(data=data, kind=kind, **props)]
-        
+
 
 @dataclass
 class Source:
     path: str = ""
+
 
 @dataclass
 class Layer:
@@ -76,4 +87,3 @@ class Layer:
     properties: dict = field(default_factory=dict)
     channel_axis: int = None
     source: Source = Source(path="")
-
