@@ -20,7 +20,6 @@ from ._count_widget import (
 )
 
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
 
 
 def napari_get_reader(path):
@@ -57,7 +56,7 @@ def napari_get_reader(path):
 
     if path.endswith(".tif"):
         logger.debug("ends with .tif")
-        
+
         if "P=" in path or "pos" in path and not "ilastik" in path:
             logger.debug("pos in path, no ilastik")
 
@@ -71,7 +70,7 @@ def napari_get_reader(path):
 
             return read_tif_yeast
         logger.debug("no pos in path, return read_tif")
-        
+
         return read_tif
 
     if "Simple Segmentation_" in path and path.endswith(".tiff"):
@@ -90,7 +89,7 @@ def read_ilastik_labels_tif(path, name="ilastik"):
 
 
 def read_cellpose_labels(path):
-    print("reading cellpose labels")
+    # print("reading cellpose labels")
     labels = tf.imread(path)
     try:
         properties = read_cellpose_seg_table(path.replace(".tif", ".csv"))

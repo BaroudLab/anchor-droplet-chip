@@ -14,7 +14,7 @@ from qtpy.QtWidgets import QPushButton, QVBoxLayout, QWidget
 from adc import _sample_data, align
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 DROPLETS_LAYER_PROPS = dict(
     name="Droplets",
@@ -185,7 +185,7 @@ def move_centers(centers, tvec: dict, figure_size):
 def locate_wells(bf, template, ccenters):
     try:
         tvec = align.get_transform(
-            image=bf, 
+            image=bf,
             template=template,
             constraints={
                 "scale": [1, 0.1],
@@ -193,7 +193,7 @@ def locate_wells(bf, template, ccenters):
                 "ty": [0, 150],
                 "angle": [0, 10],
             },
-            pad_ratio=1.3
+            pad_ratio=1.3,
         )
         logger.info(tvec)
         return move_centers(ccenters, tvec, bf.shape)

@@ -33,7 +33,7 @@ DETECTION_LAYER_PROPS = dict(
 DETECTION_CSV_SUFFIX = ".detections.csv"
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class CountCells(QWidget):
