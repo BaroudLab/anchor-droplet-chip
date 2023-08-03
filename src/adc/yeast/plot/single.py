@@ -27,6 +27,16 @@ from .tools import Layer, filters, read_data
 log = logging.getLogger(__name__)
 
 GFP_POSITIVE_THRESHOLD = 140
+RE_TITLE = r"pos\d+"
+
+
+def get_title(prefix, re_title=RE_TITLE):
+    try:
+        title = re.search(re_title, prefix).group()
+    except AttributeError:
+        log.error("unable to to find pos## in the prefix")
+        title = prefix
+    log.info(f"title will be `{title}`")
 
 
 def analyse_all_layers(
