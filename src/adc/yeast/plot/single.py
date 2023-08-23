@@ -37,6 +37,7 @@ def get_title(prefix, re_title=RE_TITLE):
         log.error("unable to to find pos## in the prefix")
         title = prefix
     log.info(f"title will be `{title}`")
+    return title
 
 
 def analyse_all_layers(
