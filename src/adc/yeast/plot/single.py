@@ -30,12 +30,13 @@ GFP_POSITIVE_THRESHOLD = 140
 RE_TITLE = r"pos\d+"
 
 
-def get_title(path, re_title=RE_TITLE):
+def get_title(prefix, re_title=RE_TITLE):
     try:
-        title = re.search(re_title, str(path)).group()
+        title = re.search(re_title, prefix).group()
     except AttributeError:
         log.error("unable to to find pos## in the prefix")
-        title = path
+        title = prefix
+    log.info(f"title will be `{title}`")
     return title
 
 

@@ -29,7 +29,12 @@ class SegmentYeast(QWidget):
     def __init__(self, napari_viewer: Viewer) -> None:
         super().__init__()
         self.viewer = napari_viewer
-        self.select_image = create_widget(label="mCherry", annotation=Image)
+        self.select_image = create_widget(
+            label="data to segment", annotation=Image
+        )
+        self.select_fluo = create_widget(
+            label="fluorescence", annotation=Image
+        )
         self.select_roi = create_widget(label="roi", annotation=Shapes)
         self.select_roi.changed.connect(self.init_roi)
         self.select_diam = SpinBox(label="diameter (px)", value=50)
@@ -38,7 +43,7 @@ class SegmentYeast(QWidget):
         self.container = Container(
             widgets=[
                 self.select_image,
-                # self.select_channels,
+                self.select_fluo,
                 self.select_roi,
                 self.select_diam,
                 self.select_skip,
@@ -82,7 +87,9 @@ class SegmentYeast(QWidget):
 
     def _detect(self):
         self.layer = self.viewer.layers[self.select_image.current_choice]
+        self.fluo_layer = self.viewer.layers[self.select_fluo.current_choice]
         self.data = self.layer.data
+        self.fluo = self.fluo_layer.data
         self.path = self.layer.metadata["path"]
 
         logger.info(f"detecting  {self.data.shape} from {self.path}")
@@ -185,8 +192,9 @@ class SegmentYeast(QWidget):
         labels = []
         props = []
         max_label = 0
-        for frame, d in enumerate(self.data):
+        for frame, (d, f) in enumerate(zip(self.data, self.fluo)):
             logger.debug(d.shape)
+            assert d.shape == f.shape
             if (sk := self.skip_frame) > 0 and frame % (sk + 1) == sk:
                 logger.debug(f"skip frame {frame}")
                 labels.append(np.zeros(d.shape, dtype="uint16"))
@@ -204,8 +212,11 @@ class SegmentYeast(QWidget):
                 if isinstance(d, da.Array):
                     d = d.compute()
                     logger.debug("compute dask array into memory")
-                mCherry = d
-                mask, _, _, _ = self.op(d)
+                if isinstance(f, da.Array):
+                    f = f.compute()
+                    logger.debug("compute fluo dask array into memory")
+                BF, mCherry = d, f
+                mask, _, _, _ = self.op(BF)
                 logger.debug(
                     f"mask shape: {mask.shape}, mCheery shape: {mCherry.shape}"
                 )

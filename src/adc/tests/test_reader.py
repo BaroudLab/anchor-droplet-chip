@@ -9,7 +9,7 @@ from pytest import fixture
 from zarr_tools import convert
 
 logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
+# logger.setLevel("DEBUG")
 
 ZPATH = "test.zarr"
 BTPATH = "btest.tif"

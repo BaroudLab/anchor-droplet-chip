@@ -1,6 +1,7 @@
 import logging
 import logging.config
 import os
+from pathlib import Path
 
 import dask.array as da
 import napari
@@ -193,8 +194,16 @@ class SplitAlong(QWidget):
         logger.info(
             f"Split result: {self.total} arrays of the size {self.data_list[0].shape}"
         )
+        if len(str(self.path_widget.value)) == 0:
+            self.path_widget.value = (
+                Path(self.path).parent
+                / "pos"
+                / f"pos{{{letter}}}"
+                / "stack.tif"
+            )
+
         self.names = [
-            f"{self.data_widget.current_choice}_{letter}={i}"
+            str(self.path_widget.value).format(**{letter: i})
             for i, _ in enumerate(self.data_list)
         ]
         self.update_table()
@@ -202,12 +211,9 @@ class SplitAlong(QWidget):
     def update_table(self):
         self.saving_table.value = [
             {
-                "name": name,
+                "name": Path(name).stem,
                 "shape": array.shape,
-                "path": os.path.join(
-                    self.path_widget.value,
-                    name + ".tif",
-                ),
+                "path": name,
                 "saved": "...",
             }
             for array, name in zip(self.data_list, self.names)
