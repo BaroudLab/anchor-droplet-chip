@@ -60,7 +60,7 @@ def napari_get_reader(path):
         if "P=" in path or "pos" in path and not "ilastik" in path:
             logger.debug("pos in path, no ilastik")
 
-            if "CP_labels" in path or "cellpose" in path:
+            if "CP_labels" in path or "cellpose" in path or "cyto" in path:
                 logger.debug("cellpose in path, return read_cellpose_labels")
                 return read_cellpose_labels
             logger.debug("no cellpose in path, return read_tif_yeast")

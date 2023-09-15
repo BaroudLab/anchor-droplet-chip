@@ -3,7 +3,7 @@ import os
 import re
 import shutil
 import time
-from typing import List
+from typing import List, Union
 
 import dask.array as da
 import matplotlib.pyplot as plt
@@ -42,21 +42,18 @@ def get_title(prefix, re_title=RE_TITLE):
 
 def analyse_all_layers(
     prefix: str = "",
-    filter_tif="filter.tif",
+    filter_tif: Union[str, None] = "filter.tif",
     data_path: str = "stack.tif",
     cp_path: str = "cellpose.tif",
     frames_per_hour=2,
     backup_folder="backup",
-    title_re=r"pos\d+",
+    title_re=RE_TITLE,
     reader=read_data,
 ):
-    try:
-        title = re.search(title_re, prefix).group()
-    except AttributeError:
-        log.error("unable to to find pos## in the prefix")
-        title = prefix
+    title = get_title(prefix)
     log.info(f"title will be `{title}`")
 
+    prefix = str(prefix)
     save_dir = os.path.dirname(prefix).replace("input", "output")
     log.info(f"output directory will be `{save_dir}`")
     if os.path.exists(save_dir) and len(os.listdir(save_dir)) > 0:
@@ -80,14 +77,32 @@ def analyse_all_layers(
         path := os.path.join(prefix, data_path)
     )
     log.info("read stack")
-    [cellpose_layer] = reader(os.path.join(prefix, cp_path))
-    log.info("read cellpose")
-    filter_layer = Layer(
-        tf.imread(os.path.join(prefix, filter_tif)) - 1,
-        name="filter",
+    cellpose_layer = Layer(
+        tf.imread(os.path.join(prefix, cp_path)),
+        name="cellpose",
         kind="labels",
     )
-    log.info("read filter")
+    log.info("read cellpose")
+    ilastik_layer = Layer(
+        tf.imread(os.path.join(prefix, il_path)),
+        name="nuclei",
+        kind="labels",
+    )
+    log.info("read ilastik")
+    if filter_tif is not None:
+        filter_layer = Layer(
+            tf.imread(os.path.join(prefix, filter_tif)) - 1,
+            name="filter",
+            kind="labels",
+        )
+        log.info(f"read filter {filter_layer.data.shape}")
+    else:
+        filter_layer = Layer(
+            np.ones_like(mcherry_layer.data, dtype=bool),
+            name="filter",
+            kind="labels",
+        )
+        log.info(f"generate blank filter {filter_layer.data.shape}")
 
     cellpose_layer_filtered = Layer(
         cellpose_layer.data * (filter_layer.data),
@@ -326,8 +341,10 @@ def plot_10(df, title="", save_path="P=19-top10px.png", backup_folder=""):
     ax2.legend(loc="upper right")
     ax1.legend(loc="upper left")
     ax1.set_title(f"top 10 px {title}")
-    fig.savefig(save_path)
-    plt.close()
+    if save_path:
+        fig.savefig(save_path)
+        plt.close()
+    plt.show()
 
 
 def plot_max(df, title="", save_path="P=19-max_intensity.png"):
@@ -443,7 +460,9 @@ def plot_table(df, x="hours", title="", save_path="all_measurements.png"):
 
     sns.lineplot(
         ax=ax,
-        data=fdf.query("channel == 'GFP' and mask == 'cellpose'"),
+        data=fdf.query(
+            "channel == 'GFP' and mask == 'cellpose' and mean_intensity > 0"
+        ),
         x=x,
         y="mean_intensity",
         label="GFP",
