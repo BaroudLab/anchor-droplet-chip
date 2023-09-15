@@ -45,7 +45,6 @@ def analyse_all_layers(
     filter_tif="filter.tif",
     data_path: str = "stack.tif",
     cp_path: str = "cellpose.tif",
-    il_path: str = "ilastik.tif",
     frames_per_hour=2,
     backup_folder="backup",
     title_re=r"pos\d+",
@@ -83,8 +82,6 @@ def analyse_all_layers(
     log.info("read stack")
     [cellpose_layer] = reader(os.path.join(prefix, cp_path))
     log.info("read cellpose")
-    [ilastik_layer] = reader(os.path.join(prefix, il_path))
-    log.info("read ilastik")
     filter_layer = Layer(
         tf.imread(os.path.join(prefix, filter_tif)) - 1,
         name="filter",
@@ -106,64 +103,12 @@ def analyse_all_layers(
     )
     log.info("apply filter layer to cellpose stack")
 
-    ilastik_times_cellpose_layer = Layer(
-        ilastik_layer.data * cellpose_layer_filtered.data,
-        name="nuclei",
-        kind="labels",
-        metadata=dict(
-            source={
-                "ilastik": ilastik_layer.source.path,
-                "cellpose": cellpose_layer_filtered.source.path,
-            },
-            op="ilastik * cellpose",
-        ),
-    )
-    log.info("link ilastik to cellpose labels")
-
-    ilastik_properties = (
-        "label",
-        "centroid",
-        "area",
-        # "mean_intensity",
-        "eccentricity",
-    )
-    props = [
-        regionprops_table(
-            label_image=l,
-            # intensity_image=i,
-            properties=ilastik_properties,
-        )
-        for l in ilastik_times_cellpose_layer.data
-    ]
-    ilastik_props = pd.concat(pd.DataFrame(p, index=p["label"]) for p in props)
-    ilastik_props.loc[0] = [0] * len(ilastik_props.columns)
-    ilastik_props = ilastik_props.reset_index()
-
-    ilastik_layer.properties = ilastik_props
-    log.info("update ilastik props")
-
-    cellpose_minus_ilastik_layer = Layer(
-        cellpose_layer_filtered.data - ilastik_times_cellpose_layer.data,
-        name="cyto - nuc",
-        metadata=dict(
-            source={
-                "ilastik": ilastik_times_cellpose_layer.metadata,
-                "cellpose": cellpose_layer_filtered.source.path,
-            },
-            op="cellpose - ilastik",
-        ),
-        kind="labels",
-    )
-    cellpose_minus_ilastik_layer.properties = cellpose_layer.properties
-    log.info("add cellpose - ilastik layer")
 
     log.info("processing table")
     df = get_table(
         fluo_layers=[mcherry_layer, gfp_layer],
         label_layers=[
             cellpose_layer_filtered,
-            cellpose_minus_ilastik_layer,
-            ilastik_times_cellpose_layer,
         ],
         path=path,
     )
@@ -178,8 +123,6 @@ def analyse_all_layers(
         df["mask"] == "cellpose", "manual_filter"
     ].values
 
-    log.info("filter nuc size")
-    df = filter_nuc_size(df, filters=filters)
 
     log.info("filter gfp")
     df = filter_gfp_intensity(df, filters=filters)
@@ -194,31 +137,15 @@ def analyse_all_layers(
     filt_df = df.query("manual_filter == 1")
 
     log.info("pivot table")
-    pv_nuc = (
-        filt_df.pivot_table(
-            index=["label", "hours", "channel"],
-            columns="mask",
-            values=["max_intensity", "mean_intensity"],
-        )
-        .dropna()
-        .reset_index()
-    )
-    pv_nuc.loc[:, "ratio"] = (
-        pv_nuc["mean_intensity"]["nuclei"]
-        / pv_nuc["mean_intensity"]["cellpose"]
-    )
-
+    
     save_path = path.replace(".tif", ".csv")
     assert save_path != path
-    # df.to_csv(save_path)
-    # df.to_excel(path.replace(".tif",".xlsx"))
     log.info(f"saving everything into {save_dir}")
     df.to_csv(ppp := os.path.join(save_dir, "table.csv"))
     log.info(f"table saved `{ppp}`")
 
     filt_df.to_csv(ppp := os.path.join(save_dir, "filt_table.csv"))
     log.info(f"filt table saved `{ppp}`")
-    pv_nuc.to_csv(ppp := os.path.join(save_dir, "pivot_table_nuc.csv"))
     log.info(f"pivot table saved `{ppp}`")
 
     try:
@@ -232,14 +159,6 @@ def analyse_all_layers(
         )
         log.info(f"plot saved `{ppp}`")
 
-        log.info(f"plot nuc-cyto-intensity-ratio")
-        plot_ilastik_intensity(
-            pv_nuc,
-            title=title,
-            save_path=(
-                ppp := os.path.join(save_dir, "nuc-cyto-intensity-ratio.png")
-            ),
-        )
         log.info(f"plot saved `{ppp}`")
 
         log.info(f"plot max_intensity_ratio")
@@ -252,14 +171,7 @@ def analyse_all_layers(
         )
         log.info(f"plot saved `{ppp}`")
 
-        log.info(f"plot count_nuc_ilastik")
-        plot_num_nuc(
-            filt_df,
-            title=title,
-            save_path=(ppp := os.path.join(save_dir, "count_nuc_ilastik.png")),
-        )
-        log.info(f"plot saved `{ppp}`")
-
+       
         log.info(f"plot all_measurements")
         plot_table(
             filt_df,
@@ -281,13 +193,6 @@ def top20px(regionmask, intensity):
     return np.sort(np.ravel(intensity[regionmask]))[-20:].mean()
 
 
-def filter_nuc_size(df, filters=filters):
-    table = df.copy()
-    table.loc[df["mask"] == "nuclei", "manual_filter"] = (
-        table[table["mask"] == "nuclei"]["area"]
-        > filters["filters"]["nuc"]["area"]["min"]
-    )
-    return table
 
 
 def filter_gfp_intensity(df, filters=filters):
