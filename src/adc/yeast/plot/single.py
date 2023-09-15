@@ -83,12 +83,7 @@ def analyse_all_layers(
         kind="labels",
     )
     log.info("read cellpose")
-    ilastik_layer = Layer(
-        tf.imread(os.path.join(prefix, il_path)),
-        name="nuclei",
-        kind="labels",
-    )
-    log.info("read ilastik")
+
     if filter_tif is not None:
         filter_layer = Layer(
             tf.imread(os.path.join(prefix, filter_tif)) - 1,
