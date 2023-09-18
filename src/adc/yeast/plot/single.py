@@ -113,7 +113,6 @@ def analyse_all_layers(
     )
     log.info("apply filter layer to cellpose stack")
 
-
     log.info("processing table")
     df = get_table(
         fluo_layers=[mcherry_layer, gfp_layer],
@@ -133,7 +132,6 @@ def analyse_all_layers(
         df["mask"] == "cellpose", "manual_filter"
     ].values
 
-
     log.info("filter gfp")
     df = filter_gfp_intensity(df, filters=filters)
 
@@ -147,7 +145,7 @@ def analyse_all_layers(
     filt_df = df.query("manual_filter == 1")
 
     log.info("pivot table")
-    
+
     save_path = path.replace(".tif", ".csv")
     assert save_path != path
     log.info(f"saving everything into {save_dir}")
@@ -181,7 +179,6 @@ def analyse_all_layers(
         )
         log.info(f"plot saved `{ppp}`")
 
-       
         log.info(f"plot all_measurements")
         plot_table(
             filt_df,
@@ -201,8 +198,6 @@ def top10px(regionmask, intensity):
 
 def top20px(regionmask, intensity):
     return np.sort(np.ravel(intensity[regionmask]))[-20:].mean()
-
-
 
 
 def filter_gfp_intensity(df, filters=filters):
@@ -277,14 +272,6 @@ def count_nuc_number(df):
         df.query("mask == 'nuclei' and channel == 'mCherry'")
         .groupby("hours")
         .count()["channel"]
-    )
-
-
-def count_nuc_number(df):
-    return (
-        df.query("mask == 'nuclei' and channel=='mCherry'")
-        .groupby("hours")
-        .count()["frame"]
     )
 
 
