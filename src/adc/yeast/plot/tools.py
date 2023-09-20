@@ -11,7 +11,7 @@ from adc._reader import napari_get_reader, read_tif_yeast
 logger = logging.getLogger(__name__)
 
 
-with open(ppp := "filters.yaml") as f:
+with open(ppp := "/Users/malenorm/anchor-droplet-chip/src/adc/yeast/plot/filters.yaml") as f:
     logger.info(f"loading filters from {os.path.abspath(ppp)}")
     filters = yaml.load(f, Loader=yaml.SafeLoader)
 
