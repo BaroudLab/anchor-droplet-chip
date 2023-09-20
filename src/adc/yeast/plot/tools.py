@@ -11,10 +11,10 @@ from adc._reader import napari_get_reader, read_tif_yeast
 logger = logging.getLogger(__name__)
 
 
-with open(ppp := "/Users/malenorm/anchor-droplet-chip/src/adc/yeast/plot/filters.yaml") as f:
-    logger.info(f"loading filters from {os.path.abspath(ppp)}")
-    filters = yaml.load(f, Loader=yaml.SafeLoader)
-
+filters = {'filters': {'cyto': {'area': {'min': 100, 'max': 3500},
+   'mean_intensity': {'mCherry': {'min': 150, 'max': 400},
+    'GFP': {'threshold': 140, 'min': 10}}},
+  'nuc': {'area': {'min': 20, 'max': 300}}}}
 
 def slice_from_axis(array, *, axis, element):
     """Take a single index slice from array using slicing.
