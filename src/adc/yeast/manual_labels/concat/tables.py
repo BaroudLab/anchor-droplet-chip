@@ -11,10 +11,23 @@ def merge_with_gfp_hour_and_final_state(tables: Iterable[pd.DataFrame]):
     """
     ttt = pd.concat(map(_add_gfp_hour, tables), ignore_index=True)
     ttt.loc[:, "ratio"] = ttt.top10px / ttt.mean_intensity
+    ttt.loc[:, "ratio10"] = ttt.top10px / ttt.mean_intensity
+    ttt.loc[:, "ratio20"] = ttt.top20px / ttt.mean_intensity
+    ttt.loc[:, "ratio100"] = ttt.top100px / ttt.mean_intensity
     ttt_fs = _add_gfp_final_state(ttt)
     return ttt_fs
 
 def merge_with_gfp_hour(tables: Iterable[pd.DataFrame]):
+    """
+    Add GFP hour to the tables and return concatenated one
+    Add ratio: top10px / mean_intensity
+    """
+    ttt = pd.concat(map(_add_gfp_hour, tables), ignore_index=True)
+    ttt.loc[:, "ratio"] = ttt.top10px / ttt.mean_intensity
+    return ttt
+
+
+def merge_with_gfp_per_cell_hour(tables: Iterable[pd.DataFrame]):
     """
     Add GFP hour to the tables and return concatenated one
     Add ratio: top10px / mean_intensity

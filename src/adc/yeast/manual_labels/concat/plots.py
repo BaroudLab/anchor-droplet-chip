@@ -56,7 +56,7 @@ def plot_top10px_for_channel_gfp_final(
 
 
 def plot_top10px_split_labels(
-    df, title="", ylim1=(100, 500), ylim2=(1, 2), xlim=(-10, 6), min_len=5
+    df, title="", ylim1=(100, 500), ylim2=(1, 2), xlim=(-20, 6), min_len=5
 ):
     """Provide a table from a single well. Intensities will be plotted 1 panel per label"""
     long_tracks = df.groupby(["label", "path"]).count().query(f"area  >= {min_len}").reset_index()
@@ -77,19 +77,50 @@ def plot_top10px_split_labels(
             y="top10px",
             legend=False,  # Remove the legend
         )
-        ax.set_title(f"{title}: cell# {i}")
-        ax.set_ylim(*ylim1)
-
-    # Create a line plot for ratio over GFPhour with specific settings
-    for i, ax in enumerate(rows[1]):
+        
         sns.lineplot(
             size="channel",
             ax=ax,
             data=df[df.label == (i + 1)],
             x="GFPhour",  # Use GFPhour for x-axis
-            y="ratio",
+            y="mean_intensity",
             legend=False,  # Remove the legend
         )
+        # sns.lineplot(
+        #     size="channel",
+        #     ax=ax,
+        #     data=df[df.label == (i + 1)],
+        #     x="GFPhour",  # Use GFPhour for x-axis
+        #     y="cyto_wo100px",
+        #     legend=False,  # Remove the legend
+        # )
+        ax.set_title(f"{title}: cell# {i}")
+        ax.set_ylim(*ylim1)
+
+    # Create a line plot for ratio over GFPhour with specific settings
+    for i, ax in enumerate(rows[1]):
+        data = df[df.label == (i + 1)]
+        # data.loc[:,"ratio_wo100px"] = data.top10px / data.cyto_wo100px
+        sns.lineplot(
+            size="channel",
+            ax=ax,
+            data=data,
+            x="GFPhour",  # Use GFPhour for x-axis
+            y="ratio",
+            # hue="GFP_positive_final" if "GFP_positive_final" in data.columns else None,
+            hue_order=[True, False],
+            legend=False,  # Remove the legend
+        )
+        # sns.lineplot(
+        #     size="channel",
+        #     ax=ax,
+        #     data=data,
+        #     x="GFPhour",  # Use GFPhour for x-axis
+        #     y="ratio_wo100px",
+        #     hue="GFP_positive_final" if "GFP_positive_final" in data.columns else None,
+        #     hue_order=[True, False],
+        #     legend=False,  # Remove the legend
+        # )
         ax.set_title(f"{title}: cell# {i}")
         ax.set_ylim(*ylim2)
         ax.set_xlim(*xlim)

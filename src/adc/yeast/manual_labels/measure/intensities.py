@@ -1,12 +1,13 @@
 from adc.yeast.plot.single import (
-    RE_TITLE, read_data, get_title, log, os, Layer, tf,  
-    plot_10, plot_ilastik_intensity, plot_max, plot_num_nuc, plot_table, time, shutil,
-    get_positive_gfp, sns, top20px, top10px, regionprops_table, da, plt
+    read_data, get_title, log, os, Layer, tf,  
+    plot_10, plot_max, plot_table, time, shutil,
+    get_positive_gfp, sns, regionprops_table
 )
 from typing import Union, List, Tuple
 import numpy as np
 import pandas as pd
 from .plot import plot_tracked_labels as _plot_tracked_labels
+from ...cellpose.measure.intensities import top10px, top20px, top100px, cyto_wo100px
 
 
 
@@ -146,7 +147,7 @@ def _get_table(
         "mean_intensity", 
         "max_intensity",
     ],
-    extra_properties: Tuple = (top10px, top20px), #tuple = unmodifiable list; here additional characteristic
+    extra_properties: Tuple = (top10px, top20px, top100px, cyto_wo100px), #tuple = unmodifiable list; here additional characteristic
     path: str = "", #path information
 ):
     intensities = [

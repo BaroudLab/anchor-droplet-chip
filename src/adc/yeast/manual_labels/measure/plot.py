@@ -22,6 +22,16 @@ def plot_tracked_labels(df, title=""):
         style="channel",
         legend=False
     )
+    sns.lineplot(
+        ax=ax[0],
+        data=df,
+        x='hours',
+        y='cyto_wo100px',
+        hue='label',
+        palette='Set2',
+        style="channel",
+        legend=False
+    )
     ax[0].set_title(title)
     #create a line plot for ratio over hours with specific settings
     sns.lineplot(ax=ax[1],

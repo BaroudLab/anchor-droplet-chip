@@ -36,7 +36,7 @@ def get_title(prefix, re_title=RE_TITLE):
     except AttributeError:
         log.error("unable to to find pos## in the prefix")
         title = prefix
-    log.info(f"title will be `{title}`")
+    # log.info(f"title will be `{title}`")
     return title
 
 
@@ -438,6 +438,13 @@ def plot_table(df, x="hours", title="", save_path="all_measurements.png"):
         x=x,
         y="top10px",
         label="top10",
+    )
+    sns.lineplot(
+        ax=ax,
+        data=fdf.query("channel == 'mCherry' and mask == 'cellpose'"),
+        x=x,
+        y="cyto_wo100px",
+        label="cyto_wo100px",
     )
 
     sns.lineplot(
