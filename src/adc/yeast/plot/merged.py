@@ -170,7 +170,7 @@ def plot_top10px_split_labels(
             data=df[df.label == (i + 1)],
             x="GFPhour",  # Use GFPhour for x-axis
             y="ratio",
-            palette="Set2",
+            palette=["mediumvioletred"],
             legend=False,  # Remove the legend
         )
         ax.set_title(f"{title}: cell# {i}")

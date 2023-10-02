@@ -75,6 +75,7 @@ def plot_top10px_split_labels(
             data=df[df.label == (i + 1)],
             x="GFPhour",  # Use GFPhour for x-axis
             y="top10px",
+            color="mediumvioletred",
             legend=False,  # Remove the legend
         )
         
@@ -84,6 +85,7 @@ def plot_top10px_split_labels(
             data=df[df.label == (i + 1)],
             x="GFPhour",  # Use GFPhour for x-axis
             y="mean_intensity",
+            color="green",
             legend=False,  # Remove the legend
         )
         # sns.lineplot(
@@ -107,6 +109,7 @@ def plot_top10px_split_labels(
             data=data,
             x="GFPhour",  # Use GFPhour for x-axis
             y="ratio",
+            color='mediumvioletred',
             # hue="GFP_positive_final" if "GFP_positive_final" in data.columns else None,
             hue_order=[True, False],
             legend=False,  # Remove the legend
