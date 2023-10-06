@@ -189,17 +189,27 @@ def top10px(regionmask, intensity):
 def top20px(regionmask, intensity):
     return np.sort(np.ravel(intensity[regionmask]))[-20:].mean()
 
+
 def top100px(regionmask, intensity):
     return np.sort(np.ravel(intensity[regionmask]))[-100:].mean()
+
+
+def top1percent(regionmask, intensity):
+    return np.sort(vector := np.ravel(intensity[regionmask]))[
+        (len(vector) / 100) :
+    ].mean()
+
 
 def cyto_wo100px(regionmask, intensity):
     log.info(f"mask size {regionmask.sum()}")
     vector = np.sort(np.ravel(intensity[regionmask]))
-    if (lll:=len(vector)) > 100:
+    if (lll := len(vector)) > 100:
         return vector[:-100].mean()
     else:
-        log.warning(f"area is smaller than 100 px ({lll}), returning lower {lll // 2} intensities")
-        return vector[:(lll // 2)].mean()
+        log.warning(
+            f"area is smaller than 100 px ({lll}), returning lower {lll // 2} intensities"
+        )
+        return vector[: (lll // 2)].mean()
 
 
 def get_table(
@@ -213,6 +223,7 @@ def get_table(
         "max_intensity",
     ],
     path: str = "",
+    extra_properties=(top10px, top1percent),
 ):
     intensities = [
         {
@@ -223,7 +234,7 @@ def get_table(
                     if isinstance(fluo.data, da.Array)
                     else fluo.data,
                     properties=properties,
-                    extra_properties=(top10px, top20px, top100px),
+                    extra_properties=extra_properties,
                 )
             ),
             "path": path,
