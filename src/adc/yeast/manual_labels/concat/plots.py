@@ -104,27 +104,28 @@ def plot_top10px_split_labels(
         data = df[df.label == (i + 1)]
         # data.loc[:,"ratio_wo100px"] = data.top10px / data.cyto_wo100px
         sns.lineplot(
-            size="channel",
             ax=ax,
             data=data,
             x="GFPhour",  # Use GFPhour for x-axis
             y="ratio",
-            color='mediumvioletred',
+            lw=3,
+            hue="channel",
+            palette=["mediumvioletred", "green"],
             # hue="GFP_positive_final" if "GFP_positive_final" in data.columns else None,
-            hue_order=[True, False],
+            # hue_order=[True, False],
             legend=False,  # Remove the legend
         )
         # sns.lineplot(
-        #     size="channel",
         #     ax=ax,
-        #     data=data,
+        #     data=df[df.channel == "GFP"],
         #     x="GFPhour",  # Use GFPhour for x-axis
-        #     y="ratio_wo100px",
-        #     hue="GFP_positive_final" if "GFP_positive_final" in data.columns else None,
-        #     hue_order=[True, False],
+        #     y="mean_intensity",
+        #     # hue="GFP_positive_final" if "GFP_positive_final" in data.columns else None,
+        #     # hue_order=[True, False],
         #     legend=False,  # Remove the legend
         # )
-        ax.set_title(f"{title}: cell# {i}")
+        
+        ax.set_title(f"{title}: cell {i}")
         ax.set_ylim(*ylim2)
         ax.set_xlim(*xlim)
 
