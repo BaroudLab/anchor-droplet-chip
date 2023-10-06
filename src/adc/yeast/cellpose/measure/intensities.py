@@ -197,7 +197,7 @@ def top100px(regionmask, intensity):
 def top1percent(regionmask, intensity):
     """Select 1% of the brightest pixels and return mean intensity"""
     return np.sort(vector := np.ravel(intensity[regionmask]))[
-        -(len(vector) / 100) :
+        -(len(vector) // 100) :
     ].mean()
 
 
