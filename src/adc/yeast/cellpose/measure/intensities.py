@@ -206,7 +206,7 @@ def top1percent_ratio(regionmask, intensity):
     top1percent_mean = np.sort(vector := np.ravel(intensity[regionmask]))[
         -(len(vector) // 100) :
     ].mean()
-    return top1percent_mean / total_mean
+    return top1percent_mean / mean_intensity
 
 
 def cyto_wo100px(regionmask, intensity):
