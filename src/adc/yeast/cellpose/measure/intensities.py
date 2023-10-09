@@ -200,6 +200,14 @@ def top1percent(regionmask, intensity):
         -(len(vector) // 100) :
     ].mean()
 
+def top1percent_ratio(regionmask, intensity):
+    """Select 1% of the brightest pixels and return mean intensity as a ratio of the total mean intensity"""
+    total_mean = intensity[regionmask].mean()
+    top1percent_mean = np.sort(vector := np.ravel(intensity[regionmask]))[
+        -(len(vector) // 100) :
+    ].mean()
+    return top1percent_mean / total_mean
+
 
 def cyto_wo100px(regionmask, intensity):
     log.info(f"mask size {regionmask.sum()}")
