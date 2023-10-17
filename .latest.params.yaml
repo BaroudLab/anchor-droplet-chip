@@ -1,0 +1,10 @@
+binning: 1
+erode: 0
+max_diameter: 150
+max_ecc: 0.946188
+min_diameter: 1
+pixel_size: 1.0
+pixel_unit: px
+smooth: 2
+thr: 0.316176
+use: Gauss diff

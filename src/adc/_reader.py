@@ -148,7 +148,7 @@ def read_zarr(path):
     meta = {"path": path}
     try:
         attrs = json.load(open(os.path.join(path, ".zattrs")))
-        info = attrs["multiscales"]["multiscales"][0]
+        info = attrs["multiscales"][0]
         dataset_paths = [
             os.path.join(path, d["path"]) for d in info["datasets"]
         ]
@@ -162,7 +162,7 @@ def read_zarr(path):
         print(f"found channel axis {channel_axis}")
     except Exception as e:
         logger.debug(f"no info found {e}")
-        channel_axis = None
+        channel_axis = 0
 
     try:
         contrast_limits = info["lut"]
