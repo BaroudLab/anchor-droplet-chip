@@ -29,7 +29,7 @@ from ._progress_widget import ProgressBarWidget
 from ._sub_stack import SubStack
 
 SPLIT_OUT_CHOICES = ("files", "layers")
-MAX_SPLIT_SIZE = 100
+MAX_SPLIT_SIZE = 200
 PIXEL_SIZE_PROPERTY_NAME = "pixel_size_um"
 SIZES_PROPERTY_NAME = "sizes"
 
