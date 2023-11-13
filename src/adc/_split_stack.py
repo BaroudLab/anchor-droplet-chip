@@ -75,6 +75,7 @@ class SplitAlong(QWidget):
         self.layout.addWidget(self.input_container.native)
         self.layout.addStretch()
         self.setLayout(self.layout)
+        self.names = []
 
         self.init_data()
 
@@ -145,6 +146,7 @@ class SplitAlong(QWidget):
                 logger.info(f"Saving {name} into {path}")
                 try:
                     data = self.data_list[i].compute()
+                    os.makedirs(path.parent, exist_ok=True)
                     meta = self.meta.copy()
                     meta["spacing"] = (px_size := meta["pixel_size_um"])
                     meta["unit"] = "um"
@@ -194,13 +196,9 @@ class SplitAlong(QWidget):
         logger.info(
             f"Split result: {self.total} arrays of the size {self.data_list[0].shape}"
         )
-        if len(str(self.path_widget.value)) == 0:
-            self.path_widget.value = (
-                Path(self.path).parent
-                / "pos"
-                / f"pos{{{letter}}}"
-                / "stack.tif"
-            )
+        self.path_widget.value = (
+            Path(self.path).parent / "pos" / f"pos{{{letter}}}" / "stack.tif"
+        )
 
         self.names = [
             str(self.path_widget.value).format(**{letter: i})
