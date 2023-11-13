@@ -87,7 +87,7 @@ def test_substack(make_napari_viewer, test_stack):
     except Exception as e:
         raise e
     finally:
-        shutil.rmtree(testdir)
+        shutil.rmtree("./pos")
 
 
 def test_projection(make_napari_viewer, test_stack):
