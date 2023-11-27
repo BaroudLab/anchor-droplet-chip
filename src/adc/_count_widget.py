@@ -124,10 +124,6 @@ class CountCells(QWidget):
 
         locs, n_peaks_per_well, drops, table_df = self.out
 
-        self.detections_layer.data = locs
-        self.counts_layer.data = drops
-        self.counts_layer.text = n_peaks_per_well
-
         try:
             path = self.selected_layer.source.path
             if path is None:
@@ -180,6 +176,10 @@ class CountCells(QWidget):
             logger.info(f"Saving table into {ppp}")
         except Exception as e:
             logger.error(f"Unable to save table into {ppp}: {e}")
+
+        self.detections_layer.data = locs
+        self.counts_layer.data = drops
+        self.counts_layer.text = n_peaks_per_well
 
     def show_counts(self, counts):
         self.counts = counts
