@@ -119,15 +119,16 @@ def segment_stack(
             print(f"saving yaml params")
             return
     df = pd.concat(props, ignore_index=True)
-    if os.path.exists(table_path := save_path.replace(*table_suffix)):
+    table_path = save_path.replace(*table_suffix)
+    if os.path.exists(table_path):
         shutil.move(
             table_path, os.path.join(backup_path, os.path.basename(table_path))
         )
     df.to_csv(table_path)
     yaml_params["regonprops"] = properties
     yaml_params["table_path"] = table_path
-
-    if os.path.exists(yaml_path := save_path.replace(*params_suffix)):
+    yaml_path = save_path.replace(*params_suffix)
+    if os.path.exists(yaml_path):
         shutil.move(
             yaml_path, os.path.join(backup_path, os.path.basename(yaml_path))
         )
