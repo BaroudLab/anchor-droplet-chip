@@ -113,10 +113,8 @@ def segment_stack(
             print(
                 f"table failed on frame {frame} label {l.shape}, mcherry {d.shape}: {e}"
             )
-
-            with open(
-                (yaml_path := save_path.replace(*params_suffix)), "w"
-            ) as f:
+            yaml_path = save_path.replace(*params_suffix)
+            with open(yaml_path, "w") as f:
                 yaml.safe_dump(yaml_params, f)
             print(f"saving yaml params")
             return
