@@ -10,6 +10,7 @@ import yaml
 from cellpose import models
 from skimage.measure import regionprops_table
 from tqdm import tqdm
+from fire import Fire
 
 
 def cells(
@@ -46,7 +47,7 @@ def cells(
         print("skip cellpose output!")
         return
     save_path = path.replace(*suffix)
-    assert save_path != path, f"Something wrong with the suffix `{suffix}`"
+    assert save_path != path, f"Something wrong with the suffix `{suffix}` in `{path}`"
     if os.path.exists(save_path):
         if backup_folder:
             backup_path = os.path.join(
@@ -58,6 +59,7 @@ def cells(
                 save_path,
                 os.path.join(backup_path, os.path.basename(save_path)),
             )
+            print(f"Backup existing data to {backup_folder}")
         else:
             print(f"segmentaion exists, return {save_path}!")
             return save_path
@@ -134,3 +136,10 @@ def cells(
     with open(yaml_path, "w") as f:
         yaml.safe_dump(yaml_params, f)
     return save_path
+
+def main(*paths):
+    """Segements movies tifs"""
+    return [cells(p) for p in tqdm(paths)]
+
+if __name__ == "__main__":
+    Fire(main)
