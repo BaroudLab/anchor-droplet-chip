@@ -47,7 +47,7 @@ def cells(
         print("skip cellpose output!")
         return
     save_path = path.replace(*suffix)
-    assert save_path != path, f"Something wrong with the suffix `{suffix}`"
+    assert save_path != path, f"Something wrong with the suffix `{suffix}` in `{path}`"
     if os.path.exists(save_path):
         if backup_folder:
             backup_path = os.path.join(
@@ -125,7 +125,7 @@ def cells(
         yaml.safe_dump(yaml_params, f)
     return save_path
 
-def main(paths):
+def main(*paths):
     """Segements movies tifs"""
     return [cells(p) for p in tqdm(paths)]
 
