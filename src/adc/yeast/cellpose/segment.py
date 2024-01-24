@@ -94,18 +94,30 @@ def cells(
 
     props = []
     for frame, (l, d) in enumerate(zip(label, mcherry)):
-        prop = {
-            **regionprops_table(
-                label_image=l, intensity_image=d, properties=properties
-            ),
-        }
-        if frame == 0:
-            for k in prop:
-                values = list(prop[k])
-                values.insert(0, 0)
-                prop[k] = values
-        prop["frame"] = frame
-        props.append(pd.DataFrame(prop))
+        try:
+            prop = {
+                **regionprops_table(
+                    label_image=l, intensity_image=d, properties=properties
+                ),
+            }
+            if frame == 0:
+                for k in prop:
+                    values = list(prop[k])
+                    values.insert(0, 0)
+                    prop[k] = values
+            prop["frame"] = frame
+            props.append(pd.DataFrame(prop))
+        except ValueError as e:
+            print(
+                f"table failed on frame {frame} label {l.shape}, mcherry {d.shape}: {e}"
+            )
+
+            with open(
+                (yaml_path := save_path.replace(*params_suffix)), "w"
+            ) as f:
+                yaml.safe_dump(yaml_params, f)
+            print(f"saving yaml params")
+            return
     df = pd.concat(props, ignore_index=True)
     if os.path.exists(table_path := save_path.replace(*table_suffix)):
         shutil.move(
