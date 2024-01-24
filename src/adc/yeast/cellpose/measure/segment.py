@@ -24,7 +24,13 @@ def cells(
     suffix=("stack.tif", "cellpose.tif"),
     table_suffix=(".tif", ".csv"),
     params_suffix=(".tif", ".params.yml"),
-    properties=("label", "centroid", "area", "mean_intensity", "eccentricity"),
+    properties=(
+        "label",
+        "centroid",
+        "area",
+        "mean_intensity",
+        "max_intensity",
+    ),
     backup_folder="backup",
     eval_kwargs={},
     model_kwargs={},
@@ -76,6 +82,7 @@ def cells(
         data = tf.imread(path)[:stop_frame]
         print(data.shape)
         mcherry = data[:, 1]
+        gfp = data[:, 2]
         max_label = 0
         labels_stack = []
         for d in tqdm(mcherry):
@@ -84,28 +91,32 @@ def cells(
             labels[labels == max_label] = 0
             max_label = labels.max()
             labels_stack.append(labels)
-        label = np.stack(labels_stack)
-        t, y, x = label.shape
-        tif.write(label.reshape((t, 1, 1, y, x)))
+        labels = np.stack(labels_stack)
+        t, y, x = labels.shape
+        tif.write(labels.reshape((t, 1, 1, y, x)))
 
     yaml_params["source"] = path
     yaml_params["labels"] = save_path
     yaml_params["stop_frame"] = stop_frame
 
     props = []
-    for frame, (l, d) in enumerate(zip(label, mcherry)):
-        prop = {
-            **regionprops_table(
-                label_image=l, intensity_image=d, properties=properties
-            ),
-        }
-        if frame == 0:
-            for k in prop:
-                values = list(prop[k])
-                values.insert(0, 0)
-                prop[k] = values
-        prop["frame"] = frame
-        props.append(pd.DataFrame(prop))
+    for channel_name, channel_stack in [("mCherry", mcherry), ("GFP", gfp)]:
+        for frame, (label, data) in enumerate(zip(labels, channel_stack)):
+            prop = {
+                **regionprops_table(
+                    label_image=label,
+                    intensity_image=data,
+                    properties=properties,
+                ),
+                "channel": channel_name,
+            }
+            if frame == 0:
+                for k in prop:
+                    values = list(prop[k])
+                    values.insert(0, 0)
+                    prop[k] = values
+            prop["frame"] = frame
+            props.append(pd.DataFrame(prop))
     df = pd.concat(props, ignore_index=True)
     if os.path.exists(table_path := save_path.replace(*table_suffix)):
         shutil.move(
@@ -119,6 +130,6 @@ def cells(
         shutil.move(
             yaml_path, os.path.join(backup_path, os.path.basename(yaml_path))
         )
-    with open(yaml_path, "w") as f:
+    with open(yaml_path, mode="w", encoding="utf8") as f:
         yaml.safe_dump(yaml_params, f)
     return save_path
