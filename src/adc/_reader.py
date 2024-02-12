@@ -259,19 +259,19 @@ def read_zarr(path):
     else:
         print(f"{det_path} doesn't exists")
 
-    if not os.path.exists(
-        ppp := os.path.join(os.path.dirname(path), TABLE_NAME)
-    ):
-        from .count import make_table
+    # if not os.path.exists(
+    #     ppp := os.path.join(os.path.dirname(path), TABLE_NAME)
+    # ):
+    #     from .count import make_table
 
-        try:
-            df = make_table(droplets_out=droplets_df.values, counts=counts)
-            df.to_csv(ppp)
-            print(f"Saved table to {ppp}")
-        except Exception as e:
-            print(f"Unable to create table")
-    else:
-        print("Table found")
+    #     try:
+    #         df = make_table(droplets_out=droplets_df.values, counts=counts)
+    #         df.to_csv(ppp)
+    #         print(f"Saved table to {ppp}")
+    #     except Exception as e:
+    #         print(f"Unable to create table")
+    # else:
+    #     print("Table found")
     return output
 
 
