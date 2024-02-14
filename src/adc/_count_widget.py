@@ -105,10 +105,10 @@ class CountCells(QWidget):
     def _update_detections(self):
         logger.debug("Creating output layers")
         self.detections_layer = self.viewer.add_points(
-            data=[[0, 0, 0, 0]], **DETECTION_LAYER_PROPS
+            data=[[0] * self.ddata_ref.ndim], **DETECTION_LAYER_PROPS
         )
         self.counts_layer = self.viewer.add_points(
-            data=[[0, 0, 0, 0]], text=[], **COUNTS_LAYER_PROPS
+            data=[[0] * self.ddata_ref.ndim], text=[], **COUNTS_LAYER_PROPS
         )
         logger.debug("Creating worker")
         self.out = count.count_recursive(
