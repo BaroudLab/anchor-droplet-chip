@@ -84,7 +84,8 @@ def cells(
             labels = custom_model.eval(d, **eval_kwargs)[0]
             labels = labels + max_label
             labels[labels == max_label] = 0
-            max_label = labels.max()
+            if labels.max() > max_label:
+                max_label = labels.max()
             labels_stack.append(labels)
         label = np.stack(labels_stack)
         t, y, x = label.shape
