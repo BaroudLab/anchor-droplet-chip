@@ -41,7 +41,7 @@ def cells(
             pretrained_model="/Volumes/Multicell/Madison/Cellpose_Model/CP_20220916_140544"
         )
     """
-    print(path)
+    print("segmenting path:", path)
 
     if path.endswith(suffix[1]):
         print("skip cellpose output!")
