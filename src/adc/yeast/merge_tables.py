@@ -8,8 +8,8 @@ import pandas as pd
 GFP_POSITIVE_THRESHOLD = 140
 
 
-def read_csv(path):
-    df = pd.read_csv(path)
+def read_csv(path, query="frame < 48"):
+    df = pd.read_csv(path).query(query)
     # print(df.head())
     # print(df.channel.unique())
     df.loc[:, "path"] = os.path.sep.join(path.split(os.path.sep)[-6:])
@@ -19,10 +19,13 @@ def read_csv(path):
     df.loc[:, "ratio"] = df.max_intensity / df.mean_intensity
     gfp_hour = df.query("GFP_positive and channel=='GFP'").hours.min()
     df.loc[:, "GFPhour"] = df.hours - gfp_hour
-    df1 = pd.read_csv(
-        os.path.join(*path.split(os.path.sep)[:-2], "input/cellpose.csv"),
-        index_col=0,
+    cellpose_path = os.path.join(
+        *path.split(os.path.sep)[:-2], "input/cellpose.csv"
     )
+    df1 = pd.read_csv(
+        cellpose_path,
+        index_col=0,
+    ).query(query)
     df11 = df1[["label", "area", "centroid-0", "centroid-1"]].rename(
         columns={"centroid-0": "y", "centroid-1": "x"}
     )
