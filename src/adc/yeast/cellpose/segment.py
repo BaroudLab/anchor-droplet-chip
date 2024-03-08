@@ -8,9 +8,15 @@ import tifffile as tf
 import torch
 import yaml
 from cellpose import models
+from fire import Fire
 from skimage.measure import regionprops_table
 from tqdm import tqdm
-from fire import Fire
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "mps" if torch.backends.mps.is_available() else device
+pretrained_model = os.path.expanduser(
+    "~/Multicell/Madison/Cellpose_Model/CP_20220916_140544"
+)
 
 
 def cells(
@@ -19,8 +25,8 @@ def cells(
     model_params=dict(
         gpu=True,
         diam_mean=37,
-        device="mps",
-        pretrained_model="/Volumes/Multicell/Madison/Cellpose_Model/CP_20220916_140544",
+        device=device,
+        pretrained_model=pretrained_model,
     ),
     suffix=("stack.tif", "cellpose.tif"),
     table_suffix=(".tif", ".csv"),
@@ -47,7 +53,9 @@ def cells(
         print("skip cellpose output!")
         return
     save_path = path.replace(*suffix)
-    assert save_path != path, f"Something wrong with the suffix `{suffix}` in `{path}`"
+    assert (
+        save_path != path
+    ), f"Something wrong with the suffix `{suffix}` in `{path}`"
     if os.path.exists(save_path):
         if backup_folder:
             backup_path = os.path.join(
@@ -138,9 +146,11 @@ def cells(
         yaml.safe_dump(yaml_params, f)
     return save_path
 
+
 def main(*paths):
     """Segements movies tifs"""
     return [cells(p) for p in tqdm(paths)]
+
 
 if __name__ == "__main__":
     Fire(main)

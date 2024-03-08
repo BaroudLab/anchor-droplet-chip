@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 # The URL from which to fetch the JSON data
 API_URL="https://nocodb01.pasteur.fr/api/get_cellpose_tasks"
 
@@ -12,18 +12,18 @@ while true; do
     response=$(curl -s $API_URL)
 
     # Extract the "task" value from the JSON response
-    task=$(echo $response | jq -r '.task')
-    folder="${task/home/Users}"
+    folder=$(echo $response | jq -r '.task')
+    # folder="${task/home/Users}"
 
     # Check if the "task" is not null
     if [ "$folder" != "null" ]; then
         echo "Processing task: $folder"
-        
+
         python src/adc/yeast/cellpose/segment.py ${folder}/stack.tif
         echo "making table"
-        python /Users/aaristov/Documents/adc-nn/table.py $folder
+        python ~/Documents/adc-nn/table.py $folder
         echo "making contours"
-        python /Users/aaristov/Documents/adc-nn/src/adc_nn/tools/contours.py ${folder}/cellpose.tif
+        python ~/Documents/adc-nn/src/adc_nn/tools/contours.py ${folder}/cellpose.tif
     else
         echo "No task available, waiting 10 seconds..."
         sleep 10
