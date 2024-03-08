@@ -13,6 +13,10 @@ from tqdm import tqdm
 from fire import Fire
 
 
+def top10px(regionmask, intensity):
+    return np.sort(np.ravel(intensity[regionmask]))[-10:].mean()
+
+
 def cells(
     path: str,
     stop_frame=None,
@@ -26,6 +30,7 @@ def cells(
     table_suffix=(".tif", ".csv"),
     params_suffix=(".tif", ".params.yml"),
     properties=("label", "centroid", "area", "mean_intensity", "eccentricity"),
+    extra_properties=(top10px, ),
     backup_folder="backup",
     eval_kwargs={},
     model_kwargs={},
@@ -100,7 +105,7 @@ def cells(
         try:
             prop = {
                 **regionprops_table(
-                    label_image=l, intensity_image=d, properties=properties
+                    label_image=l, intensity_image=d, properties=properties, extra_properties=extra_properties
                 ),
             }
             if frame == 0:
@@ -137,6 +142,7 @@ def cells(
     with open(yaml_path, "w") as f:
         yaml.safe_dump(yaml_params, f)
     return save_path
+
 
 def main(*paths):
     """Segements movies tifs"""
