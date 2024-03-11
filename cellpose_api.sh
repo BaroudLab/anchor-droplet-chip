@@ -19,11 +19,11 @@ while true; do
     if [ "$folder" != "null" ]; then
         echo "Processing task: $folder"
 
-        python src/adc/yeast/cellpose/segment.py ${folder}/stack.tif
+        python src/adc/yeast/cellpose/segment.py ${folder}stack.tif
         echo "making table"
         python ~/Documents/adc-nn/table.py $folder
         echo "making contours"
-        python ~/Documents/adc-nn/src/adc_nn/tools/contours.py ${folder}/cellpose.tif
+        python ~/Documents/adc-nn/src/adc_nn/tools/contours.py ${folder}cellpose.tif
     else
         echo "No task available, waiting 10 seconds..."
         sleep 10
