@@ -144,7 +144,7 @@ def cells(
         )
     df.to_csv(table_path)
     yaml_params["regonprops"] = properties
-    yaml_params["extra_properties"] = list(extra_properties)
+    yaml_params["extra_properties"] = [a.__name__ for a in extra_properties]
     yaml_params["table_path"] = table_path
 
     if os.path.exists(yaml_path := save_path.replace(*params_suffix)):
