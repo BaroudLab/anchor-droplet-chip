@@ -36,7 +36,7 @@ def cells(
     table_suffix=(".tif", ".csv"),
     params_suffix=(".tif", ".params.yml"),
     properties=("label", "centroid", "area", "mean_intensity", "eccentricity"),
-    extra_properties=(top10px, ),
+    extra_properties=(top10px,),
     backup_folder="backup",
     eval_kwargs={},
     model_kwargs={},
@@ -113,7 +113,10 @@ def cells(
         try:
             prop = {
                 **regionprops_table(
-                    label_image=l, intensity_image=d, properties=properties, extra_properties=extra_properties
+                    label_image=l,
+                    intensity_image=d,
+                    properties=properties,
+                    extra_properties=extra_properties,
                 ),
             }
             if frame == 0:
@@ -141,6 +144,7 @@ def cells(
         )
     df.to_csv(table_path)
     yaml_params["regonprops"] = properties
+    yaml_params["extra_properties"] = list(extra_properties)
     yaml_params["table_path"] = table_path
 
     if os.path.exists(yaml_path := save_path.replace(*params_suffix)):
