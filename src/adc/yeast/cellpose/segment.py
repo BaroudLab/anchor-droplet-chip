@@ -156,9 +156,9 @@ def cells(
     return save_path
 
 
-def main(*paths):
+def main(*paths, backup="backup"):
     """Segements movies tifs"""
-    return [cells(p) for p in tqdm(paths)]
+    return [cells(p, backup_folder=backup) for p in tqdm(paths)]
 
 
 if __name__ == "__main__":
