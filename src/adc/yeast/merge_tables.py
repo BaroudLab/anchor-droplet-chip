@@ -10,28 +10,32 @@ GFP_POSITIVE_THRESHOLD = 140
 
 
 def read_csv(path, query="frame <= 48"):
-    df = pd.read_csv(path).query(query)
-    # print(df.head())
-    # print(df.channel.unique())
-    df.loc[:, "path"] = os.path.sep.join(path.split(os.path.sep)[-6:])
-    df.loc[:, "mask"] = "cellpose"
-    df.loc[:, "hours"] = df.frame / 2
-    df.loc[:, "GFP_positive"] = df.mean_intensity > GFP_POSITIVE_THRESHOLD
-    gfp_hour = df.query("GFP_positive and channel=='GFP'").hours.min()
-    df.loc[:, "GFPhour"] = df.hours - gfp_hour
-
-    cellpose_path = Path(path).parent.parent / "input" / "cellpose.csv"
-    df1 = pd.read_csv(
-        cellpose_path,
-        index_col=0,
-    ).query(query)
-    assert "top10px" in df1.columns
-    # print(df1.head)
-    df11 = df1[
-        ["label", "area", "centroid-0", "centroid-1", "top10px"]
-    ].rename(columns={"centroid-0": "y", "centroid-1": "x"})
-    df2 = df.merge(right=df11, on="label")
-    df2.loc[:, "ratio"] = df2.top10px / df2.mean_intensity
+    try:
+        df = pd.read_csv(path).query(query)
+        # print(df.head())
+        # print(df.channel.unique())
+        df.loc[:, "path"] = os.path.sep.join(path.split(os.path.sep)[-6:])
+        df.loc[:, "mask"] = "cellpose"
+        df.loc[:, "hours"] = df.frame / 2
+        df.loc[:, "GFP_positive"] = df.mean_intensity > GFP_POSITIVE_THRESHOLD
+        gfp_hour = df.query("GFP_positive and channel=='GFP'").hours.min()
+        df.loc[:, "GFPhour"] = df.hours - gfp_hour
+    
+        cellpose_path = Path(path).parent.parent / "input" / "cellpose.csv"
+        df1 = pd.read_csv(
+            cellpose_path,
+            index_col=0,
+        ).query(query)
+        assert "top10px" in df1.columns
+        # print(df1.head)
+        df11 = df1[
+            ["label", "area", "centroid-0", "centroid-1", "top10px"]
+        ].rename(columns={"centroid-0": "y", "centroid-1": "x"})
+        df2 = df.merge(right=df11, on="label")
+        df2.loc[:, "ratio"] = df2.top10px / df2.mean_intensity
+    except (AttributeError, ValueError) as e:
+        print(f"problem with {path}", e)
+        return 
     return df2
 
 
