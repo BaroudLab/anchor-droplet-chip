@@ -22,6 +22,11 @@ def read_csv(path, query="frame <= 48"):
         df.loc[:, "GFPhour"] = df.hours - gfp_hour
     
         cellpose_path = Path(path).parent.parent / "input" / "cellpose.csv"
+
+        merge_cols = ["label", "area", "centroid-0", "centroid-1"]
+        if "top10px" in list(df.columns):
+            merge_cols.append("top10px")
+            
         df1 = pd.read_csv(
             cellpose_path,
             index_col=0,
@@ -29,7 +34,7 @@ def read_csv(path, query="frame <= 48"):
         assert "top10px" in df1.columns
         # print(df1.head)
         df11 = df1[
-            ["label", "area", "centroid-0", "centroid-1", "top10px"]
+            merge_cols
         ].rename(columns={"centroid-0": "y", "centroid-1": "x"})
         df2 = df.merge(right=df11, on="label")
         df2.loc[:, "ratio"] = df2.top10px / df2.mean_intensity
