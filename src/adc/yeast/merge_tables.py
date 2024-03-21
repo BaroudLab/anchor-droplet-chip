@@ -24,7 +24,7 @@ def read_csv(path, query="frame <= 48"):
         cellpose_path = Path(path).parent.parent / "input" / "cellpose.csv"
 
         merge_cols = ["label", "area", "centroid-0", "centroid-1"]
-        if "top10px" in list(df.columns):
+        if not "top10px" in list(df.columns):
             merge_cols.append("top10px")
             
         df1 = pd.read_csv(
