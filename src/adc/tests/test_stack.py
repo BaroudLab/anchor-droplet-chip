@@ -31,6 +31,7 @@ def test_stack():
             "dask_data": da.from_array(tpcz_stack),
             "sizes": sizes,
             "pixel_size_um": 0.3,
+            "path": "./test.tif"
         },
         "channel_axis": 2,
     }
@@ -71,15 +72,7 @@ def test_substack(make_napari_viewer, test_stack):
     st.split_data()
     assert len(st.data_list) == P
     assert st.data_list[0].shape == (T, C, Y, X)
-    try:
-        os.mkdir(TEST_DIR_NAME)
-    except FileExistsError:
-        shutil.rmtree(TEST_DIR_NAME)
-        os.mkdir(TEST_DIR_NAME)
-
-    st.path_widget.value = (
-        testdir := os.path.join(os.path.curdir, TEST_DIR_NAME)
-    )
+    testdir = "./pos/pos*/input/"
     try:
         st.start_export()
         start = time.time()
@@ -94,7 +87,7 @@ def test_substack(make_napari_viewer, test_stack):
     except Exception as e:
         raise e
     finally:
-        shutil.rmtree(testdir)
+        shutil.rmtree("./pos")
 
 
 def test_projection(make_napari_viewer, test_stack):

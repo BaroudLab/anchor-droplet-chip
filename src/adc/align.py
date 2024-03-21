@@ -5,12 +5,13 @@ from os import PathLike
 from typing import Tuple
 
 import fire
-import imreg_dft as reg
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage.color import label2rgb
 from skimage.measure import label
 from tifffile import imread, imwrite
+
+import imreg_dft as reg
 
 try:
     __version__ = version("anchor-droplet-chip")
@@ -18,7 +19,7 @@ except PackageNotFoundError:
     # package is not installed
     __version__ = "Unknown"
 logger = logging.getLogger("adc.align")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 GREY = np.array([np.arange(256)] * 3, dtype="uint8")
@@ -56,6 +57,7 @@ CONSTRAINTS = {  # [mean, std]
 
 class PaddingError(Exception):
     pass
+
 
 def align_stack(
     data: np.ndarray,
@@ -188,7 +190,7 @@ def get_transform(
     print(f"padding image: {image.shape}")
     padded_image = pad(image, s)
     print(f"padded image: {padded_image.shape}")
-    
+
     tvec = register(padded_image, padded_template, constraints)
     print(f"Found transform: {tvec}")
     if plot:
@@ -219,7 +221,9 @@ def pad(image: np.ndarray, to_shape: tuple = None, padding: tuple = None):
         try:
             padding = calculate_padding(image.shape, to_shape)
         except PaddingError as e:
-            new_to_shape = tuple(max(i,j) for i, j in zip(image.shape, to_shape))
+            new_to_shape = tuple(
+                max(i, j) for i, j in zip(image.shape, to_shape)
+            )
             logger.error(f"Error padding {e.args} try to_shape {new_to_shape}")
 
     try:
@@ -259,8 +263,10 @@ def calculate_padding(shape1: tuple, shape2: tuple):
     2D tuple of indices
     """
     dif = np.array(shape2) - np.array(shape1)
-    if not all(dif >= 0): 
-        raise PaddingError(f"Shape2 {shape2} must be bigger than shape1 {shape1}")
+    if not all(dif >= 0):
+        raise PaddingError(
+            f"Shape2 {shape2} must be bigger than shape1 {shape1}"
+        )
     mid = dif // 2
     rest = dif - mid
     return (mid[0], rest[0]), (mid[1], rest[1])

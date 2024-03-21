@@ -24,7 +24,7 @@ except PackageNotFoundError:
     __version__ = "Unknown"
 
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s %(levelname)s : %(message)s"
+    level=logging.INFO, format="%(asctime)s %(levelname)s : %(message)s"
 )
 logger = logging.getLogger("adc.count")
 
