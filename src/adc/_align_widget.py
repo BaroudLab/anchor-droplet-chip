@@ -14,8 +14,8 @@ from tqdm import tqdm
 
 from adc import _sample_data, align
 
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 DROPLETS_LAYER_PROPS = dict(
     name="Droplets",
