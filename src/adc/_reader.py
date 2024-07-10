@@ -55,6 +55,10 @@ def napari_get_reader(path):
         return read_ilastik_labels_tif
 
     if path.endswith(".tif"):
+        if "POINT 00001" in path:
+            logger.info("reading muvicyte")
+            return read_muvicyte_tif
+
         logger.debug("ends with .tif")
 
         if "P=" in path or "pos" in path and not "ilastik" in path:
@@ -185,12 +189,9 @@ def read_tif_yeast(path):
     ]
 
 
-def read_ilastik(path):
-    labels = np.array(h5py.File(path)["exported_data"]) - 1
-    print(labels.shape)
-    if labels.ndim == 4:
-        t, c, y, x = labels.shape
-    return [(labels.reshape((t, y, x)), {"name": "ilastik"}, "labels")]
+def read_muvicyte_tif(path):
+    data = tf.imread(path)
+    return [(data, {"name": ["BF","TRITC", "GFP", "labels"], "channel_axis":1}, "image")]
 
 
 def read_tif(path):
