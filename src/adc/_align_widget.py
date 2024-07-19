@@ -90,7 +90,7 @@ class DetectWells(QWidget):
 
         temp = self.viewer.layers[self.select_template.current_choice].data
         centers = self.viewer.layers[self.select_centers.current_choice].data
-        ccenters = centers - np.array(temp.shape) / 2.0
+        ccenters = centers / 8 - np.array(temp.shape) / 2.0
 
         if data.ndim == 2:
             data = (data,)

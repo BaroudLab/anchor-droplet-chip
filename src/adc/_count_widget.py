@@ -13,7 +13,7 @@ from napari.utils import progress
 from napari.utils.notifications import show_error, show_info
 from qtpy.QtWidgets import QLineEdit, QPushButton, QVBoxLayout, QWidget
 
-from adc import count
+from adc import count, _sample_data
 
 from ._align_widget import DROPLETS_CSV_SUFFIX
 
@@ -70,6 +70,11 @@ class CountCells(QWidget):
 
         self.setLayout(self.layout)
 
+        if not "centers" in self.viewer.layers:
+            centers = _sample_data.make_centers()[0]
+            self.viewer.add_points(centers[0], **centers[1])
+            self.reset_choices()
+            
     def process_stack(self):
         self._pick_data_ref()
         self._pick_centers()

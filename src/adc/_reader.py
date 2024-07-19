@@ -304,6 +304,13 @@ def read_zarr(path):
         contrast_limits = None
 
     try:
+        scale = info["scale"]
+        logger.debug("scale: %s", scale)
+    except Exception as e:
+        logger.debug("no scale info found")
+        scale = None
+
+    try:
         colormap = info["colormap"]
     except Exception as e:
         logger.debug("no info found")
@@ -346,6 +353,7 @@ def read_zarr(path):
                 "contrast_limits": contrast_limits,
                 "name": name,
                 "metadata": meta,
+                "scale": scale
             },
             "image",
         )
