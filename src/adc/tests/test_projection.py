@@ -21,7 +21,7 @@ def tif_file():
 
 def test_projection(make_napari_viewer, tif_file):
     v = make_napari_viewer()
-    layers = v.open(TIF_PATH, plugin="anchor-droplet-chip")
+    layers = v.open(TIF_PATH, plugin="anchor_droplet_chip")
     assert len(layers) == 4
     p = ProjectAlong(v)
     p.axis_selector.value = "Z:3"
