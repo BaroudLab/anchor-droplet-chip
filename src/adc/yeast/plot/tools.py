@@ -73,7 +73,7 @@ def read_data(path, reader=napari_get_reader):
 
 @dataclass
 class Source:
-    path: str = ""
+    path: str = field("", default_factory=str)
 
 
 @dataclass
@@ -83,7 +83,7 @@ class Layer:
     metadata: dict = field(default_factory=dict)
     contrast_limits: Tuple = field(default_factory=tuple)
     colormap: List = field(default_factory=list)
-    kind: str = "image"
+    kind: str = field("image", default_factory=str)
     properties: dict = field(default_factory=dict)
     channel_axis: int = None
     source: Source = Source(path="")
