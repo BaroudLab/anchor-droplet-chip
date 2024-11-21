@@ -73,7 +73,7 @@ def read_data(path, reader=napari_get_reader):
 
 @dataclass
 class Source:
-    path: str = field(default="", default_factory=str)
+    path: str = field(default="")
 
 
 @dataclass
