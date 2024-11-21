@@ -71,12 +71,12 @@ def read_data(path, reader=napari_get_reader):
     return [Layer(data=data, kind=kind, **props)]
 
 
-@dataclass
+
 class Source:
     path: str = ""
 
 
-@dataclass
+
 class Layer:
     data: np.typing.ArrayLike
     name: Union[str, List[str]]
