@@ -86,4 +86,4 @@ class Layer:
     kind: str = field(default="image")
     properties: dict = field(default_factory=dict)
     channel_axis: int = field(default=None)
-    source: Source = field(default=Source(path=""))
+    source: Source = field(default_factory=Source)
