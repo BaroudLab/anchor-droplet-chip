@@ -98,6 +98,7 @@ def _analyse_all_layers_manual(
     log.info("processing table")  # log processing of table
     df = _get_table(
         fluo_layers=[mcherry_layer, gfp_layer],
+        extra_properties=(top10px, top1percent, cyto_wo100px),
         label_layers=[
             cyto_layer,
         ],
@@ -117,7 +118,7 @@ def _analyse_all_layers_manual(
 
     save_path = path.replace(".tif", ".csv")  # generate save path
     assert save_path != path  # assert save path is not same as input path
-    # df.to_csv(save_path)
+    # df.to_csv(save_path
     # df.to_excel(path.replace(".tif",".xlsx"))
     log.info(f"saving everything into {save_dir}")
     os.makedirs(save_dir, exist_ok=True)
