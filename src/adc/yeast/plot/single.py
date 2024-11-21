@@ -14,7 +14,6 @@ import tifffile as tf
 
 # import plot_tools
 import yaml
-from napari import Viewer
 from napari.layers import Image, Labels
 from skimage.measure import regionprops, regionprops_table
 from tqdm import tqdm
