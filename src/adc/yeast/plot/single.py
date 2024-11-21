@@ -13,8 +13,6 @@ import seaborn as sns
 import tifffile as tf
 
 # import plot_tools
-import yaml
-from napari.layers import Image, Labels
 from skimage.measure import regionprops, regionprops_table
 from tqdm import tqdm
 
@@ -213,8 +211,8 @@ def filter_gfp_intensity(df, filters=filters):
 
 
 def get_table(
-    fluo_layers: List[Image],
-    label_layers: List[Labels],
+    fluo_layers,
+    label_layers,
     properties: List[str] = [
         "label",
         "centroid",
