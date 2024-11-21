@@ -83,7 +83,7 @@ class Layer:
     metadata: dict = field(default_factory=dict)
     contrast_limits: Tuple = field(default_factory=tuple)
     colormap: List = field(default_factory=list)
-    kind: str = field(default="image", default_factory=str)
+    kind: str = field(default="image")
     properties: dict = field(default_factory=dict)
     channel_axis: int = field(default=None)
     source: Source = Source(path="")
