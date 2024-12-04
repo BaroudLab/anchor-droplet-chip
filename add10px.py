@@ -11,6 +11,8 @@ from fire import Fire
 def top10px(regionmask, intensity):
     return np.sort(np.ravel(intensity[regionmask]))[-10:].mean()
 
+def isin(name, column_names):
+    return any(name in _name for _name in column_names)
 
 def cells(
     path: str,
