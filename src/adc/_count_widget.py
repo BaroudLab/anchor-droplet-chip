@@ -13,7 +13,7 @@ from napari.utils import progress
 from napari.utils.notifications import show_error, show_info
 from qtpy.QtWidgets import QLineEdit, QPushButton, QVBoxLayout, QWidget
 
-from adc import count
+from adc import count, _sample_data
 
 from ._align_widget import DROPLETS_CSV_SUFFIX
 
@@ -33,7 +33,7 @@ DETECTION_LAYER_PROPS = dict(
 DETECTION_CSV_SUFFIX = ".detections.csv"
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class CountCells(QWidget):
@@ -70,6 +70,11 @@ class CountCells(QWidget):
 
         self.setLayout(self.layout)
 
+        if not "centers" in self.viewer.layers:
+            centers = _sample_data.make_centers()[0]
+            self.viewer.add_points(centers[0], **centers[1])
+            self.reset_choices()
+            
     def process_stack(self):
         self._pick_data_ref()
         self._pick_centers()
@@ -105,10 +110,10 @@ class CountCells(QWidget):
     def _update_detections(self):
         logger.debug("Creating output layers")
         self.detections_layer = self.viewer.add_points(
-            data=[[0, 0, 0, 0]], **DETECTION_LAYER_PROPS
+            data=[[0] * self.ddata_ref.ndim], **DETECTION_LAYER_PROPS
         )
         self.counts_layer = self.viewer.add_points(
-            data=[[0, 0, 0, 0]], text=[], **COUNTS_LAYER_PROPS
+            data=[[0] * self.ddata_ref.ndim], text=[], **COUNTS_LAYER_PROPS
         )
         logger.debug("Creating worker")
         self.out = count.count_recursive(

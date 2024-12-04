@@ -1,9 +1,12 @@
 import json
 import logging
 import os
+from functools import partial
 
 import dask.array as da
+import h5py
 import nd2
+import numpy as np
 import pandas as pd
 import tifffile as tf
 
@@ -17,7 +20,6 @@ from ._count_widget import (
 )
 
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
 
 
 def napari_get_reader(path):
@@ -34,6 +36,7 @@ def napari_get_reader(path):
         If the path is a recognized format, return a function that accepts the
         same path or list of paths, and returns a list of layer data tuples.
     """
+    logger.debug("napari_get_reader starts")
     if isinstance(path, list):
         # reader plugins may be handed single path, or a list of paths.
         # if it is a list, it is assumed to be an image stack...
@@ -47,11 +50,95 @@ def napari_get_reader(path):
     if path.endswith(".zarr"):
         return read_zarr
 
+    if "ilastik" in path and not "cellpose" in path:
+        logger.debug("ilastik in path, no cellpose")
+        return read_ilastik_labels_tif
+
     if path.endswith(".tif"):
+        if "POINT 00001" in path:
+            logger.info("reading muvicyte")
+            return read_muvicyte_tif
+
+        logger.debug("ends with .tif")
+
+        if "P=" in path or "pos" in path and not "ilastik" in path:
+            logger.debug("pos in path, no ilastik")
+
+            if "CP_labels" in path or "cellpose" in path or "cyto" in path:
+                logger.debug("cellpose in path, return read_cellpose_labels")
+                return read_cellpose_labels
+            logger.debug("no cellpose in path, return read_tif_yeast")
+
+            if "filter.tif" in path:
+                return partial(read_ilastik_labels_tif, name="filter")
+
+            return read_tif_yeast
+        logger.debug("no pos in path, return read_tif")
+
         return read_tif
+
+    if "Simple Segmentation_" in path and path.endswith(".tiff"):
+        return read_ilastik_labels_tif
 
     if path.endswith(".csv"):
         return read_csv
+
+    return None
+
+
+def read_ilastik_labels_tif(path, name="ilastik"):
+    data = tf.imread(path)
+    labels = data - 1
+    return [(labels, dict(name=name, metadata={"path": path}), "labels")]
+
+
+def read_cellpose_labels(path):
+    # print("reading cellpose labels")
+    labels = tf.imread(path)
+    try:
+        properties = read_cellpose_seg_table(path.replace(".tif", ".csv"))
+    except Exception as e:
+        print(f"Failed loading csv: {e}")
+        properties = None
+    return [(labels, dict(name="cellpose", properties=properties), "labels")]
+
+
+def read_cellpose_seg_table(table_path: str):
+    try:
+        table = pd.read_csv(
+            table_path,
+            index_col=0,
+            # usecols=("index",
+            #     "label",
+            #     "area",
+            #     "mean_intensity",
+            #     "eccentricity",
+            #     "solidity",
+            #     "frame"
+            # )
+        )
+    except ValueError:
+        table = pd.read_csv(
+            table_path,
+            index_col=0,
+            # usecols=(
+            #     "index",
+            #     "label",
+            #     "area",
+            #     "mean_intensity",
+            #     "eccentricity",
+            #     "frame"
+            # )
+        )
+    return table.sort_index()
+
+
+def get_yeast_reader(path):
+    if path.endswith("*P=*.tif"):
+        return read_tif_yeast
+
+    if path.endswith(".h5"):
+        return read_ilastik
 
     return None
 
@@ -65,6 +152,46 @@ def read_csv(path, props=DROPLETS_LAYER_PROPS):
             "points",
         )
     ]
+
+
+def read_tif_yeast(path):
+    data = tf.TiffFile(path)
+    z = data.aszarr()
+    d = da.from_zarr(z)
+    colormap = ["gray", "magenta", "green"]
+    names = ["BF", "mCherry", "GFP"]
+    assert d.ndim == 4, f"Expected 4D TCYX stack, got {d.shape}"
+    assert d.shape[1] == len(
+        names
+    ), f"Expected {len(names)} channels, got {data.shape[1]} with total shape {data.shape}"
+
+    contrast_limits = (None, (90, 600), (90, 600))
+
+    return [
+        (
+            d,
+            {
+                "colormap": colormap,
+                "name": names,
+                "channel_axis": 1,
+                "contrast_limits": contrast_limits,
+                "metadata": {
+                    "dask_data": d,
+                    "path": path,
+                    "colormap": colormap,
+                    "names": names,
+                    "sizes": {k: v for k, v in zip("TCYX", d.shape)},
+                    "contrast_limits": contrast_limits,
+                },
+            },
+            "image",
+        )
+    ]
+
+
+def read_muvicyte_tif(path):
+    data = tf.imread(path)
+    return [(data, {"name": ["BF","TRITC", "GFP", "labels"], "channel_axis":1}, "image")]
 
 
 def read_tif(path):
@@ -113,7 +240,13 @@ def read_tif(path):
             arr,
             {
                 "channel_axis": channel_axis,
-                "metadata": {"path": path, "dask_data": d, "sizes": sizes},
+                "metadata": {
+                    "path": path,
+                    "dask_data": d,
+                    "sizes": sizes,
+                    "colormap": colormap,
+                    "contrast_limits": contrast_limits,
+                },
                 "colormap": colormap,
                 "contrast_limits": contrast_limits,
             },
@@ -171,6 +304,13 @@ def read_zarr(path):
         contrast_limits = None
 
     try:
+        scale = info["scale"]
+        logger.debug("scale: %s", scale)
+    except Exception as e:
+        logger.debug("no scale info found")
+        scale = None
+
+    try:
         colormap = info["colormap"]
     except Exception as e:
         logger.debug("no info found")
@@ -213,6 +353,7 @@ def read_zarr(path):
                 "contrast_limits": contrast_limits,
                 "name": name,
                 "metadata": meta,
+                "scale": scale
             },
             "image",
         )

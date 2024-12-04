@@ -15,7 +15,7 @@ def read_tif(path, **kwargs):
 
 def read_csv(path, **kwargs):
     centers = pd.read_csv(path)
-    yx = centers[["y", "x"]].values
+    yx = centers[["y", "x"]].values * 8
     return [(yx, {**kwargs}, "points")]
 
 
@@ -40,7 +40,7 @@ def make_template():
 
 def make_centers():
 
-    return _load_sample_data(*DATA[1], name="centers", scale=(8, 8))
+    return  _load_sample_data(*DATA[1], name="centers", size=100)
 
 
 def download_url_to_file(

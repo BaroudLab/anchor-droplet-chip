@@ -1,0 +1,17 @@
+filters:
+    cyto:
+        area:
+            min: 100
+            max: 3500
+        mean_intensity:
+            mCherry:
+                min: 150
+                max: 400
+            GFP:
+                threshold: 140
+                min: 10
+    nuc:
+        area:
+            min: 20
+            max: 300
+        
