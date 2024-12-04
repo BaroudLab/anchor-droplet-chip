@@ -26,6 +26,18 @@ def cells(
     saves  csv with regionprops
     
     """
+    props = (*properties, *(a.__name__ for a in extra_properties))
+
+    labels_path = path.replace(*suffix)
+    table_path = labels_path.replace(*table_suffix)
+    if os.path.exists(table_path):
+        columns = list(pd.read_csv(table_path).columns)
+        if all(isin(p, columns) for p in props):
+            print("all columns are there, skip")
+            return table_path
+        shutil.move(
+            table_path, table_path+".bak")
+    
     print("quantfy path:", path)
 
     if path.endswith(suffix[1]):
