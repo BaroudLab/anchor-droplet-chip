@@ -45,7 +45,6 @@ def cells(
     if path.endswith(suffix[1]):
         print("skip cellpose output!")
         return
-    labels_path = path.replace(*suffix)
     assert labels_path != path, f"Something wrong with the suffix `{suffix}` in `{path}`"
     
     mcherry = tf.imread(path)[:stop_frame, 1]
