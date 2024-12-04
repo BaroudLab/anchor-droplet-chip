@@ -47,11 +47,7 @@ def cells(
                     label_image=l, intensity_image=d, properties=properties, extra_properties=extra_properties
                 ),
             }
-            if frame == 0:
-                for k in prop:
-                    values = list(prop[k])
-                    values.insert(0, 0)
-                    prop[k] = values
+            
             prop["frame"] = frame
             props.append(pd.DataFrame(prop))
         except ValueError as e:
