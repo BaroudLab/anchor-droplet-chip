@@ -58,9 +58,7 @@ def cells(
             
             return
     df = pd.concat(props, ignore_index=True)
-    if os.path.exists(table_path := labels_path.replace(*table_suffix)):
-        shutil.move(
-            table_path, table_path+".bak")
+    
         
     df.to_csv(table_path)
     
