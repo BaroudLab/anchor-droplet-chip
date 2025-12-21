@@ -6,6 +6,8 @@ from asyncio.log import logger
 import dask.array as da
 import numpy as np
 import pandas as pd
+from functools import partial
+
 from magicgui.widgets import Container, create_widget
 from napari import Viewer
 from napari.layers import Image, Points
@@ -13,7 +15,7 @@ from napari.utils import progress
 from napari.utils.notifications import show_error, show_info
 from qtpy.QtWidgets import QLineEdit, QPushButton, QVBoxLayout, QWidget
 
-from adc import count, _sample_data
+from adc import count
 
 from ._align_widget import DROPLETS_CSV_SUFFIX
 
@@ -30,10 +32,13 @@ DETECTION_LAYER_PROPS = dict(
     face_color="#ffffff00",
     border_color="#ff007f88",
 )
+
+
+
 DETECTION_CSV_SUFFIX = ".detections.csv"
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 class CountCells(QWidget):
@@ -46,10 +51,39 @@ class CountCells(QWidget):
             annotation=Image,
             label="TRITC",
         )
-        self.radius = 300
+        
+        # Add parameter widgets as text inputs
+        self.size_widget = create_widget(
+            value=300, 
+            label="size",
+            widget_type="LineEdit"
+        )
+        self.dif_gauss_sigma_widget = create_widget(
+            value="(3, 5)",
+            label="dif_gauss_sigma",
+            widget_type="LineEdit"
+        )
+        self.min_distance_widget = create_widget(
+            value=3,
+            label="min_distance",
+            widget_type="LineEdit"
+        )
+        self.threshold_abs_widget = create_widget(
+            value=2.0,
+            label="threshold_abs",
+            widget_type="LineEdit"
+        )
+        
         self.select_centers = create_widget(label="centers", annotation=Points)
         self.container = Container(
-            widgets=[self.select_TRITC, self.select_centers]
+            widgets=[
+                self.select_TRITC, 
+                self.select_centers,
+                self.size_widget,
+                self.dif_gauss_sigma_widget,
+                self.min_distance_widget,
+                self.threshold_abs_widget
+            ]
         )
         self.out = []
         self.counts_layer = None
@@ -64,17 +98,8 @@ class CountCells(QWidget):
         self.layout.addWidget(self.btn)
         self.layout.addStretch()
 
-        # self.viewer.layers.events.inserted.connect(self.reset_choices)
-        # self.viewer.layers.events.removed.connect(self.reset_choices)
-        # self.reset_choices(self.viewer.layers.events.inserted)
-
         self.setLayout(self.layout)
 
-        if not "centers" in self.viewer.layers:
-            centers = _sample_data.make_centers()[0]
-            self.viewer.add_points(centers[0], **centers[1])
-            self.reset_choices()
-            
     def process_stack(self):
         self._pick_data_ref()
         self._pick_centers()
@@ -116,22 +141,42 @@ class CountCells(QWidget):
             data=[[0] * self.ddata_ref.ndim], text=[], **COUNTS_LAYER_PROPS
         )
         logger.debug("Creating worker")
+        
+        # Get parameter values from widgets and parse them
+        size = int(self.size_widget.value)
+        dif_gauss_sigma = eval(self.dif_gauss_sigma_widget.value)  # Parse tuple string
+        min_distance = int(self.min_distance_widget.value)
+        threshold_abs = float(self.threshold_abs_widget.value)
+        
+        # Create partial function with custom parameters
+        # First, create a customized get_peaks with our parameters
+        custom_get_peaks = partial(
+            count.get_peaks,
+            dif_gauss_sigma=dif_gauss_sigma,
+            min_distance=min_distance,
+            threshold_abs=threshold_abs
+        )
+        
+        # Then, create a customized get_global_peaks that uses our custom_get_peaks
+        custom_localizer = partial(
+            count.get_global_peaks,
+            localizer=custom_get_peaks
+        )
+        
         self.out = count.count_recursive(
             data=self.ddata_ref,
             positions=self.centers,
-            size=self.radius,
+            size=size,
             progress=progress,
+            localizer=custom_localizer
         )
+
         self.save_results()
 
     def save_results(self):
         show_info("Done localizing ")
 
         locs, n_peaks_per_well, drops, table_df = self.out
-
-        self.detections_layer.data = locs
-        self.counts_layer.data = drops
-        self.counts_layer.text = n_peaks_per_well
 
         try:
             path = self.selected_layer.source.path
@@ -185,6 +230,14 @@ class CountCells(QWidget):
             logger.info(f"Saving table into {ppp}")
         except Exception as e:
             logger.error(f"Unable to save table into {ppp}: {e}")
+
+        print("locs type:", type(locs), "shape:", getattr(locs, "shape", None))
+        print("drops type:", type(drops), "shape:", getattr(drops, "shape", None))
+        print("n_peaks_per_well:", n_peaks_per_well)
+        
+        self.detections_layer.data = locs
+        self.counts_layer.data = drops
+        self.counts_layer.text = n_peaks_per_well
 
     def show_counts(self, counts):
         self.counts = counts
