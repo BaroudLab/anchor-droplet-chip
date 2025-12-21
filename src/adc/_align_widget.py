@@ -14,13 +14,13 @@ from qtpy.QtWidgets import QPushButton, QVBoxLayout, QWidget
 from adc import _sample_data, align
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 DROPLETS_LAYER_PROPS = dict(
     name="Droplets",
     size=300,
     face_color="#00000000",
-    edge_color="#00880088",
+    border_color="#00880088",
 )
 DROPLETS_CSV_SUFFIX = ".droplets.csv"
 
@@ -90,7 +90,7 @@ class DetectWells(QWidget):
 
         temp = self.viewer.layers[self.select_template.current_choice].data
         centers = self.viewer.layers[self.select_centers.current_choice].data
-        ccenters = centers - np.array(temp.shape) / 2.0
+        ccenters = centers / 8 - np.array(temp.shape) / 2.0
 
         if data.ndim == 2:
             data = (data,)
@@ -185,7 +185,7 @@ def move_centers(centers, tvec: dict, figure_size):
 def locate_wells(bf, template, ccenters):
     try:
         tvec = align.get_transform(
-            image=bf, 
+            image=bf,
             template=template,
             constraints={
                 "scale": [1, 0.1],
@@ -193,7 +193,7 @@ def locate_wells(bf, template, ccenters):
                 "ty": [0, 150],
                 "angle": [0, 10],
             },
-            pad_ratio=1.3
+            pad_ratio=1.3,
         )
         logger.info(tvec)
         return move_centers(ccenters, tvec, bf.shape)

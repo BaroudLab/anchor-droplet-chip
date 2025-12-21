@@ -8,7 +8,7 @@ import numpy as np
 from magicgui import magic_factory
 from napari.layers import Image, Points, Shapes
 
-logging.config.fileConfig("logging.conf")
+# logging.config.fileConfig("logging.conf")
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ def make_matrix(
             "name": "ROIs",
             "symbol": "square",
             "size": size,
-            "edge_color": "#ff0000",
+            "border_color": "#ff0000",
             "face_color": "#00000000",
         },
         "points",
@@ -87,8 +87,9 @@ def crop_rois(
             meta["sizes"], axis, "P", len(good_crops)
         )
     except KeyError:
+        meta = {"sizes": {"X": 0, "Y": 0, "P": len(good_crops)}}
         logger.error(
-            rf"Failed updating meta[`sizes`] with \{'P': {len(good_crops)}\}"
+            rf"Failed updating meta[`sizes`] with %s ", {'P': len(good_crops)}
         )
     meta["sizes"]["X"] = size
     meta["sizes"]["Y"] = size
@@ -97,7 +98,7 @@ def crop_rois(
 
     return (
         da.stack(good_crops, axis=axis),
-        {"scale": scale, "metadata": meta},
+        {"scale": scale, "metadata": meta, "name": "crops"},
         "image",
     )
 
