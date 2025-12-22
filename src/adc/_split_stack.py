@@ -179,6 +179,7 @@ class SplitAlong(QWidget):
         logger.info(f"Splitting dask array {self.dask_data.shape}")
         axis_sel = self.axis_selector.current_choice
         letter, size = axis_sel.split(":")
+        self.letter = letter  # Store for use in update_table
         self.total = int(size)
         axis = list(self.sizes).index(letter)
         if self.split_selector.value == SPLIT_OUT_CHOICES[1]:  # layers
@@ -210,6 +211,24 @@ class SplitAlong(QWidget):
         self.update_table()
 
     def update_table(self):
+        # Regenerate names based on current path_widget value
+        if hasattr(self, 'letter') and hasattr(self, 'data_list'):
+            path_value = str(self.path_widget.value)
+            # Check if path_value contains a placeholder
+            if '{' in path_value and '}' in path_value:
+                # Path contains a placeholder, format it
+                self.names = [
+                    path_value.format(**{self.letter: i})
+                    for i, _ in enumerate(self.data_list)
+                ]
+            else:
+                # Path is a directory, append numbered filenames
+                path_obj = Path(path_value)
+                self.names = [
+                    str(path_obj / f"{i}.tif")
+                    for i, _ in enumerate(self.data_list)
+                ]
+
         self.saving_table.value = [
             {
                 "name": Path(name).stem,
