@@ -196,9 +196,12 @@ class SplitAlong(QWidget):
         logger.info(
             f"Split result: {self.total} arrays of the size {self.data_list[0].shape}"
         )
-        self.path_widget.value = (
-            Path(self.path).parent / "pos" / f"pos{{{letter}}}" / "input" / "stack.tif"
-        )
+        if self.path is not None:
+            self.path_widget.value = (
+                Path(self.path).parent / "pos" / f"pos{{{letter}}}" / "input" / "stack.tif"
+            )
+        else:
+            self.path_widget.value = Path("pos") / f"pos{{{letter}}}" / "input" / "stack.tif"
 
         self.names = [
             str(self.path_widget.value).format(**{letter: i})
@@ -263,8 +266,12 @@ class SplitAlong(QWidget):
             self.path = self.selected_layer.metadata["path"]
             logger.debug(f"set path {self.path}")
         except KeyError:
-            self.path = self.selected_layer.source.path
-            logger.debug(f"set path to {self.path} from layer source")
+            try:
+                self.path = self.selected_layer.source.path
+                logger.debug(f"set path to {self.path} from layer source")
+            except (AttributeError, KeyError):
+                self.path = None
+                logger.warning("No path found in metadata")
 
         try:
             self.pixel_size_um = self.meta[PIXEL_SIZE_PROPERTY_NAME]
