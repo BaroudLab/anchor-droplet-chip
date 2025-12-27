@@ -1,6 +1,6 @@
 import logging
-import logging.config
 import os
+from pathlib import Path
 
 import dask.array as da
 import napari
