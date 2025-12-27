@@ -1,6 +1,6 @@
 import logging
+import logging.config
 import os
-from pathlib import Path
 
 import dask.array as da
 import napari
@@ -17,7 +17,6 @@ from napari.layers import Image
 from napari.utils.notifications import show_error, show_info, show_warning
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -29,7 +28,7 @@ from ._progress_widget import ProgressBarWidget
 from ._sub_stack import SubStack
 
 SPLIT_OUT_CHOICES = ("files", "layers")
-MAX_SPLIT_SIZE = 200
+MAX_SPLIT_SIZE = 100
 PIXEL_SIZE_PROPERTY_NAME = "pixel_size_um"
 SIZES_PROPERTY_NAME = "sizes"
 
@@ -75,7 +74,6 @@ class SplitAlong(QWidget):
         self.layout.addWidget(self.input_container.native)
         self.layout.addStretch()
         self.setLayout(self.layout)
-        self.names = []
 
         self.init_data()
 
@@ -145,7 +143,6 @@ class SplitAlong(QWidget):
             else:
                 logger.info(f"Saving {name} into {path}")
                 try:
-                    os.makedirs(Path(path).parent, exist_ok=True)
                     data = self.data_list[i].compute()
                     meta = self.meta.copy()
                     meta["spacing"] = (px_size := meta["pixel_size_um"])
@@ -197,15 +194,8 @@ class SplitAlong(QWidget):
         logger.info(
             f"Split result: {self.total} arrays of the size {self.data_list[0].shape}"
         )
-        if self.path is not None:
-            self.path_widget.value = (
-                Path(self.path).parent / "pos" / f"pos{{{letter}}}" / "input" / "stack.tif"
-            )
-        else:
-            self.path_widget.value = Path("pos") / f"pos{{{letter}}}" / "input" / "stack.tif"
-
         self.names = [
-            str(self.path_widget.value).format(**{letter: i})
+            f"{self.data_widget.current_choice}_{letter}={i}"
             for i, _ in enumerate(self.data_list)
         ]
         self.update_table()
@@ -231,9 +221,12 @@ class SplitAlong(QWidget):
 
         self.saving_table.value = [
             {
-                "name": Path(name).stem,
+                "name": name,
                 "shape": array.shape,
-                "path": name,
+                "path": os.path.join(
+                    self.path_widget.value,
+                    name + ".tif",
+                ),
                 "saved": "...",
             }
             for array, name in zip(self.data_list, self.names)
@@ -300,21 +293,16 @@ class SplitAlong(QWidget):
             self.meta[PIXEL_SIZE_PROPERTY_NAME] = self.pixel_size_um
             logger.debug(f"set pixel_size_um to None")
 
-
-        self.update_axis_selector()
+        self.axis_selector.choices = list(
+            f"{ax}:{size}"
+            for ax, size in list(self.sizes.items())[:]
+            if size < MAX_SPLIT_SIZE
+        )
 
         logger.debug(f"update choices with {self.axis_selector.choices}")
 
         SubStack.update_axis_labels(
             self.sizes, self.selected_layer.data, self.viewer.dims
-        )
-
-    def update_axis_selector(self):
-
-        self.axis_selector.choices = list(
-            f"{ax}:{size}"
-            for ax, size in list(self.sizes.items())
-            if size < MAX_SPLIT_SIZE
         )
 
     def reset_choices(self):
