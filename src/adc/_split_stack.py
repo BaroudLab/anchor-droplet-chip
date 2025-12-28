@@ -1,6 +1,6 @@
 import logging
-import logging.config
 import os
+from pathlib import Path
 
 import dask.array as da
 import napari
@@ -176,6 +176,7 @@ class SplitAlong(QWidget):
         logger.info(f"Splitting dask array {self.dask_data.shape}")
         axis_sel = self.axis_selector.current_choice
         letter, size = axis_sel.split(":")
+        self.letter = letter  # Store for use in update_table
         self.total = int(size)
         axis = list(self.sizes).index(letter)
         if self.split_selector.value == SPLIT_OUT_CHOICES[1]:  # layers
@@ -200,6 +201,24 @@ class SplitAlong(QWidget):
         self.update_table()
 
     def update_table(self):
+        # Regenerate names based on current path_widget value
+        if hasattr(self, 'letter') and hasattr(self, 'data_list'):
+            path_value = str(self.path_widget.value)
+            # Check if path_value contains a placeholder
+            if '{' in path_value and '}' in path_value:
+                # Path contains a placeholder, format it
+                self.names = [
+                    path_value.format(**{self.letter: i})
+                    for i, _ in enumerate(self.data_list)
+                ]
+            else:
+                # Path is a directory, append numbered filenames
+                path_obj = Path(path_value)
+                self.names = [
+                    str(path_obj / f"{i}.tif")
+                    for i, _ in enumerate(self.data_list)
+                ]
+
         self.saving_table.value = [
             {
                 "name": name,
@@ -259,8 +278,12 @@ class SplitAlong(QWidget):
             self.path = self.selected_layer.metadata["path"]
             logger.debug(f"set path {self.path}")
         except KeyError:
-            self.path = self.selected_layer.source.path
-            logger.debug(f"set path to {self.path} from layer source")
+            try:
+                self.path = self.selected_layer.source.path
+                logger.debug(f"set path to {self.path} from layer source")
+            except (AttributeError, KeyError):
+                self.path = None
+                logger.warning("No path found in metadata")
 
         try:
             self.pixel_size_um = self.meta[PIXEL_SIZE_PROPERTY_NAME]

@@ -279,8 +279,9 @@ def read_json(path):
 def read_zarr(path):
     print(f"read_zarr {path}")
     meta = {"path": path}
+
     try:
-        attrs = json.load(open(os.path.join(path, ".zattrs")))
+        attrs = json.load(open(ppp)) if os.path.exists(ppp := os.path.join(path, ".zattrs")) else json.load(open(os.path.join(path, "zarr.json")))["attributes"]
         info = attrs["multiscales"]["multiscales"][0]
         dataset_paths = [
             os.path.join(path, d["path"]) for d in info["datasets"]
